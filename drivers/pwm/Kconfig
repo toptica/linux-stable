@@ -65,6 +65,21 @@ config PWM_JZ4740
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-jz4740.
 
+config PWM_OMAP
+	tristate "OMAP pwm support"
+	depends on ARCH_OMAP && OMAP_DM_TIMER
+	help
+	  Generic PWM framework driver for OMAP
+
+	  Select this option if you want to be able to request and use
+	  one or more of the OMAP dual-mode timers as a generic PWM device
+	  compatible with other generic PWM drivers such as the backlight or
+	  beeper driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-omap.
+
+
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
 	depends on ARCH_LPC32XX
