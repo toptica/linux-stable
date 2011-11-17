@@ -72,6 +72,7 @@ static irqreturn_t edt_ts_irq_thread(int irq, void *dev_id)
 
 	if (touch_id == 0 && event & EDT_EVENT_TOUCH_UP) {
 		input_report_key(priv->input, BTN_TOUCH, 0);
+		input_report_abs(priv->input, ABS_PRESSURE, 0);
 		input_sync(priv->input);
 		return IRQ_HANDLED;
 	}
@@ -80,6 +81,7 @@ static irqreturn_t edt_ts_irq_thread(int irq, void *dev_id)
 		input_report_key(priv->input, BTN_TOUCH, 1);
 		input_report_abs(priv->input, ABS_X, xpos[0]);
 		input_report_abs(priv->input, ABS_Y, ypos[0]);
+		input_report_abs(priv->input, ABS_PRESSURE, 255);
 		input_sync(priv->input);
 	}
 
@@ -138,6 +140,7 @@ static int __devinit edt_ts_probe(struct i2c_client *client,
 
 	input_set_abs_params(input, ABS_X, 0, 800, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, 480, 0, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 255, 0, 0);
 
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;
