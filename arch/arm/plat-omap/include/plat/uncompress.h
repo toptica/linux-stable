@@ -152,6 +152,7 @@ static inline void arch_decomp_setup(void)
 		DEBUG_LL_OMAP2(3, nokia_n810_wimax);
 
 		/* omap3 based boards using UART1 */
+		DEBUG_LL_OMAP3(1, am3517_mt_ventoux);
 		DEBUG_LL_OMAP2(1, omap3evm);
 		DEBUG_LL_OMAP3(1, omap_3430sdp);
 		DEBUG_LL_OMAP3(1, omap_3630sdp);
