@@ -215,6 +215,9 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err_src_sel;
 
 	if (dpi_use_dsi_pll(dssdev)) {
+		if (dpi.dsidev == NULL)
+			dpi.dsidev = dsi_get_dsidev_from_id(0);
+
 		r = dsi_runtime_get(dpi.dsidev);
 		if (r)
 			goto err_get_dsi;
