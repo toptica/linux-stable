@@ -392,6 +392,31 @@ static struct panel_config generic_dpi_panels[] = {
 		.name			= "ortustech_com43h4m10xtc",
 	},
 
+	/* Chimei G070Y2-L01 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 28800,
+
+			.hsw		= 4,
+			.hfp		= 192,
+			.hbp		= 20,
+
+			.vsw		= 10,
+			.vfp		= 20,
+			.vbp		= 2,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
+		.name                   = "chimei_G070Y2-L01",
+	},
+
 	/* Innolux AT080TN52 */
 	{
 		{
