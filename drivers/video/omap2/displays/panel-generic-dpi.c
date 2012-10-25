@@ -373,18 +373,18 @@ static struct panel_config generic_dpi_panels[] = {
 			.x_res		= 480,
 			.y_res		= 272,
 
-			.pixel_clock	= 8000,
+			.pixel_clock	= 9000,
 
-			.hsw		= 41,
-			.hfp		= 8,
-			.hbp		= 4,
+			.hsw		= 2,
+			.hfp		= 5,
+			.hbp		= 40,
 
-			.vsw		= 10,
-			.vfp		= 4,
-			.vbp		= 2,
+			.vsw		= 2,
+			.vfp		= 8,
+			.vbp		= 8,
 
-			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
 			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
