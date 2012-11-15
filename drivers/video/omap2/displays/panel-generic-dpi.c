@@ -417,6 +417,32 @@ static struct panel_config generic_dpi_panels[] = {
 		.name                   = "chimei_G070Y2-L01",
 	},
 
+
+	/* THB-835 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 600,
+
+			.pixel_clock	= 28800,
+
+			.hsw		= 2,
+			.hfp		= 128,
+			.hbp		= 28,
+
+			.vsw		= 14,
+			.vfp		= 14,
+			.vbp		= 2,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
+		.name                   = "thb-835",
+	},
+
 	/* Innolux AT080TN52 */
 	{
 		{
