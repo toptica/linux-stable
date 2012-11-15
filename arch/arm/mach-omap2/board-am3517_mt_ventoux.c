@@ -8,35 +8,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/gpio.h>
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/nand.h>
-#include <linux/mtd/plat-ram.h>
-#include <linux/mmc/host.h>
-#include <linux/regulator/fixed.h>
-#include <linux/regulator/machine.h>
-#include <linux/spi/ads7846.h>
-#include <linux/spi/spi.h>
-#include <linux/can/platform/ti_hecc.h>
+#include "tam3517_common.c"
 #include <linux/uio_driver.h>
-
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-
-#include <plat/common.h>
-#include <plat/mcspi.h>
-#include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <plat/usb.h>
-
-#include <mach/am35xx.h>
-
-#include "am35xx-emac.h"
-#include "mux.h"
-#include "control.h"
-#include "hsmmc.h"
-#include "common-board-devices.h"
-#include "common.h"
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 /* FPGA */
 #define FPGA_BASE_ADDR		0x20000000
@@ -106,42 +80,6 @@ static __init void mt_ventoux_musb_init(void)
 
 	usb_musb_init(&musb_board_data);
 }
-
-static struct mtd_partition mt_ventoux_nand_partitions[] = {
-	/* All the partition sizes are listed in terms of NAND block size */
-	{
-		.name		= "SPL",
-		.offset		= 0,
-		.size		= 4 * NAND_BLOCK_SIZE,
-		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
-	},
-	{
-		.name		= "U-Boot",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x80000 */
-		.size		= 8 * NAND_BLOCK_SIZE,
-		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
-	},
-	{
-		.name		= "U-Boot Env1",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x180000 */
-		.size		= 2 * NAND_BLOCK_SIZE,
-	},
-	{
-		.name		= "U-Boot Env2",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x1C0000 */
-		.size		= 2 * NAND_BLOCK_SIZE,
-	},
-	{
-		.name		= "Kernel",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x200000 */
-		.size		= 48 * NAND_BLOCK_SIZE,
-	},
-	{
-		.name		= "File System",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x800000 */
-		.size		= MTDPART_SIZ_FULL,
-	},
-};
 
 #define PANEL_PWR_PIN		138
 #define LCD_PANEL_PON_PIN	139
@@ -228,40 +166,6 @@ static int __init mt_ventoux_panel_setup(char *str)
 
 __setup("panel=", mt_ventoux_panel_setup);
 
-/*
- * use fake regulator for vdds_dsi as we can't find this pin inside
- * AM3517 datasheet.
- */
-static struct regulator_consumer_supply mt_ventoux_vdds_dsi_supply[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi.0"),
-};
-
-static struct regulator_init_data mt_ventoux_vdds_dsi = {
-	.constraints		= {
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL,
-		.always_on		= 1,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(mt_ventoux_vdds_dsi_supply),
-	.consumer_supplies	= mt_ventoux_vdds_dsi_supply,
-};
-
-static struct fixed_voltage_config mt_ventoux_display = {
-	.supply_name		= "display",
-	.microvolts		= 1800000,
-	.gpio			= -EINVAL,
-	.enabled_at_boot	= 1,
-	.init_data		= &mt_ventoux_vdds_dsi,
-};
-
-static struct platform_device mt_ventoux_display_device = {
-	.name		= "reg-fixed-voltage",
-	.id		= 0,
-	.dev = {
-		.platform_data	= &mt_ventoux_display,
-	},
-};
-
 static void __init mt_ventoux_display_init(void)
 {
 	int r;
@@ -282,131 +186,11 @@ static void __init mt_ventoux_display_init(void)
 	}
 }
 
-/* TPS65023 specific initialization */
-/* VDCDC1 -> VDD_CORE */
-static struct regulator_consumer_supply am3517_vdcdc1_supplies[] = {
-	{
-		.supply = "vdd_core",
-	},
-};
-
-/* VDCDC2 -> VDDSHV */
-static struct regulator_consumer_supply am3517_vdcdc2_supplies[] = {
-	{
-		.supply = "vddshv",
-	},
-};
-
-/*
- * VDCDC2 |-> VDDS
- *	  |-> VDDS_SRAM_CORE_BG
- *	  |-> VDDS_SRAM_MPU
- */
-static struct regulator_consumer_supply am3517_vdcdc3_supplies[] = {
-	{
-		.supply = "vdds",
-	},
-	{
-		.supply = "vdds_sram_core_bg",
-	},
-	{
-		.supply = "vdds_sram_mpu",
-	},
-};
-
-/*
- * LDO1 |-> VDDA1P8V_USBPHY
- *	|-> VDDA_DAC
- */
-static struct regulator_consumer_supply am3517_ldo1_supplies[] = {
-	{
-		.supply = "vdda1p8v_usbphy",
-	},
-	{
-		.supply = "vdda_dac",
-	},
-};
-
-/* LDO2 -> VDDA3P3V_USBPHY */
-static struct regulator_consumer_supply am3517_ldo2_supplies[] = {
-	{
-		.supply = "vdda3p3v_usbphy",
-	},
-};
-
-static struct regulator_init_data mt_ventoux_regulator_data[] = {
-	/* DCDC1 */
-	{
-		.constraints = {
-			.min_uV = 1200000,
-			.max_uV = 1200000,
-			.valid_modes_mask = REGULATOR_MODE_NORMAL,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.always_on = true,
-			.apply_uV = false,
-		},
-		.num_consumer_supplies = ARRAY_SIZE(am3517_vdcdc1_supplies),
-		.consumer_supplies = am3517_vdcdc1_supplies,
-	},
-	/* DCDC2 */
-	{
-		.constraints = {
-			.min_uV = 3300000,
-			.max_uV = 3300000,
-			.valid_modes_mask = REGULATOR_MODE_NORMAL,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.always_on = true,
-			.apply_uV = false,
-		},
-		.num_consumer_supplies = ARRAY_SIZE(am3517_vdcdc2_supplies),
-		.consumer_supplies = am3517_vdcdc2_supplies,
-	},
-	/* DCDC3 */
-	{
-		.constraints = {
-			.min_uV = 1800000,
-			.max_uV = 1800000,
-			.valid_modes_mask = REGULATOR_MODE_NORMAL,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.always_on = true,
-			.apply_uV = false,
-		},
-		.num_consumer_supplies = ARRAY_SIZE(am3517_vdcdc3_supplies),
-		.consumer_supplies = am3517_vdcdc3_supplies,
-	},
-	/* LDO1 */
-	{
-		.constraints = {
-			.min_uV = 1800000,
-			.max_uV = 1800000,
-			.valid_modes_mask = REGULATOR_MODE_NORMAL,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.always_on = false,
-			.apply_uV = false,
-		},
-		.num_consumer_supplies = ARRAY_SIZE(am3517_ldo1_supplies),
-		.consumer_supplies = am3517_ldo1_supplies,
-	},
-	/* LDO2 */
-	{
-		.constraints = {
-			.min_uV = 3300000,
-			.max_uV = 3300000,
-			.valid_modes_mask = REGULATOR_MODE_NORMAL,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.always_on = false,
-			.apply_uV = false,
-		},
-		.num_consumer_supplies = ARRAY_SIZE(am3517_ldo2_supplies),
-		.consumer_supplies = am3517_ldo2_supplies,
-	},
-};
-
 static struct i2c_board_info __initdata mt_ventoux_i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("tps65023", 0x48),
 		.flags = I2C_CLIENT_WAKE,
-		.platform_data = &mt_ventoux_regulator_data[0],
+		.platform_data = &tam3517_regulator_data[0],
 	},
         {
                 I2C_BOARD_INFO("24c02", 0x50),
@@ -434,79 +218,6 @@ static void __init mt_ventoux_i2c_init(void)
 	omap_register_i2c_bus(3, 400, mt_ventoux_i2c3_devices,
 			ARRAY_SIZE(mt_ventoux_i2c3_devices));
 }
-
-#if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
-	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-/*
- * use fake regulator for tsc2046 vcc
- */
-static struct regulator_consumer_supply mt_ventoux_tsc2046_vcc_supply[] = {
-	REGULATOR_SUPPLY("vcc", "spi1.0"),
-};
-
-static struct regulator_init_data mt_ventoux_tsc2046_vcc = {
-	.constraints		= {
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL,
-		.always_on		= 1,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(mt_ventoux_tsc2046_vcc_supply),
-	.consumer_supplies	= mt_ventoux_tsc2046_vcc_supply,
-};
-
-static struct fixed_voltage_config mt_ventoux_ts = {
-	.supply_name		= "touchscreen",
-	.microvolts		= 3300000,
-	.gpio			= -EINVAL,
-	.enabled_at_boot	= 1,
-	.init_data		= &mt_ventoux_tsc2046_vcc,
-};
-
-static struct platform_device mt_ventoux_ts_device = {
-	.name		= "reg-fixed-voltage",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &mt_ventoux_ts,
-	},
-};
-
-static struct ads7846_platform_data tsc2046_config __initdata = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 30,
-	.debounce_tol		= 10,
-	.debounce_rep		= 1,
-	.keep_vref_on		= 1,
-	.settle_delay_usecs	= 100,
-};
-#endif
-
-#define USB_PHY1_RESET		25
-
-static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
-
-	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	.reset_gpio_port[0]  = USB_PHY1_RESET,
-	.reset_gpio_port[1]  = -EINVAL,
-	.reset_gpio_port[2]  = -EINVAL
-};
-
-#define SD_CARD_CD		126
-
-static struct omap2_hsmmc_info mmc[] = {
-	{
-		.mmc		= 1,
-		.caps		= MMC_CAP_4_BIT_DATA,
-		.gpio_cd        = SD_CARD_CD,
-		.gpio_wp        = -EINVAL,
-	},
-	{}      /* Terminator */
-};
 
 #ifdef CONFIG_SENSORS_ADCXX
 static struct omap2_mcspi_device_config adc128s_mcspi_config = {
@@ -543,41 +254,9 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct resource am3517_hecc_resources[] = {
-	{
-		.start	= AM35XX_IPSS_HECC_BASE,
-		.end	= AM35XX_IPSS_HECC_BASE + 0x3FFF,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_35XX_HECC0_IRQ,
-		.end	= INT_35XX_HECC0_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct ti_hecc_platform_data am3517_hecc_pdata = {
-	.scc_hecc_offset	= AM35XX_HECC_SCC_HECC_OFFSET,
-	.scc_ram_offset		= AM35XX_HECC_SCC_RAM_OFFSET,
-	.hecc_ram_offset	= AM35XX_HECC_RAM_OFFSET,
-	.mbx_offset		= AM35XX_HECC_MBOX_OFFSET,
-	.int_line		= AM35XX_HECC_INT_LINE,
-	.version		= AM35XX_HECC_VERSION,
-};
-
-static struct platform_device am3517_hecc_device = {
-	.name		= "ti_hecc",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(am3517_hecc_resources),
-	.resource	= am3517_hecc_resources,
-	.dev		= {
-		.platform_data = &am3517_hecc_pdata,
-	},
-};
-
 static struct platform_device *mt_ventoux_devices[] __initdata = {
-	&mt_ventoux_display_device,
-	&mt_ventoux_ts_device,
+	&tam3517_display_device,
+	&tam3517_ts_device,
 	&mt_ventoux_fpga_device,
 	&am3517_hecc_device,
 };
@@ -599,8 +278,8 @@ static void __init mt_ventoux_init(void)
 	usbhs_init(&usbhs_bdata);
 
 	/* NAND */
-	omap_nand_flash_init(NAND_BUSWIDTH_16, mt_ventoux_nand_partitions,
-			     ARRAY_SIZE(mt_ventoux_nand_partitions));
+	omap_nand_flash_init(NAND_BUSWIDTH_16, tam3517_nand_partitions,
+			     ARRAY_SIZE(tam3517_nand_partitions));
 
 	/* touchscreen */
 	omap_mux_init_gpio(TS_IRQ_PIN, OMAP_PIN_INPUT);
@@ -625,7 +304,6 @@ static const char *mt_ventoux_dt_match[] __initdata = {
 };
 
 MACHINE_START(AM3517_MT_VENTOUX, "TeeJet MT_VENTOUX")
-	/* Maintainer: Ilya Yanok */
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
