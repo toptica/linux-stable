@@ -443,6 +443,32 @@ static inline void __init tam3517_gpio_keys_init(void) { return; }
 
 #define TS_IRQ_PIN	136
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type	= MUSB_INTERFACE_ULPI,
+	.mode		= MUSB_PERIPHERAL,
+	.set_phy_power	= am35x_musb_phy_power,
+	.clear_irq	= am35x_musb_clear_irq,
+	.set_mode	= am35x_set_mode,
+	.reset	= am35x_musb_reset,
+};
+
+static __init void am3517_musb_init(void)
+{
+	u32 devconf2;
+
+	/* Set up USB clock/mode in the DEVCONF2 register. */
+	devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
+
+	/* USB2.0 PHY reference clock is 13 MHz */
+	devconf2 &= ~(CONF2_REFFREQ | CONF2_OTGMODE | CONF2_PHY_GPIOMODE);
+	devconf2 |= CONF2_REFFREQ_13MHZ | CONF2_SESENDEN | CONF2_VBDTCTEN
+		| CONF2_DATPOL;
+
+	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
+
+	usb_musb_init(&musb_board_data);
+}
+
 static void __init tam3517_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -479,6 +505,9 @@ static void __init tam3517_init(void)
 
 	/* MMC init */
 	omap_hsmmc_init(mmc);
+
+	/* MUSB init */
+	am3517_musb_init();
 }
 
 static const char *tam3517_dt_match[] __initdata = {
