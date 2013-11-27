@@ -514,6 +514,30 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.name			= "edt_et0500g0dh6",
 	},
+	/* EDT ETM0700G0DH6 in TOPICA rack*/
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+			.pixel_clock	= 33230,
+
+			.hsw		= 128,
+			.hfp		= 40, // =1056-216-800
+			.hbp		= 216-128,
+
+			.vsw		= 2,
+			.vfp		= 10, //=525-35-480
+			.vbp		= 35-2,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
+		.name			= "edt_etm0700g0dh6",
+	},
+
 
 	/* Prime-View PD050VL1 */
 	{
