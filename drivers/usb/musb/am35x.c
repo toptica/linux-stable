@@ -159,13 +159,21 @@ static void otg_timer(unsigned long _musb)
 		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-		if (devctl & MUSB_DEVCTL_BDEVICE) {
+/*		if (devctl & MUSB_DEVCTL_BDEVICE) {
 			musb->xceiv->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
 		} else {
 			musb->xceiv->state = OTG_STATE_A_IDLE;
 			MUSB_HST_MODE(musb);
-		}
+		} */
+		if (devctl & MUSB_DEVCTL_HM) {
+ 			musb->xceiv->state = OTG_STATE_A_IDLE;
+ 			MUSB_HST_MODE(musb);
+		} else {
+			musb->xceiv->state = OTG_STATE_B_IDLE;
+			MUSB_DEV_MODE(musb);
+			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+ 		}
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
 		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -174,10 +182,18 @@ static void otg_timer(unsigned long _musb)
 		break;
 	case OTG_STATE_B_IDLE:
 		devctl = musb_readb(mregs, MUSB_DEVCTL);
-		if (devctl & MUSB_DEVCTL_BDEVICE)
+/*		if (devctl & MUSB_DEVCTL_BDEVICE)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 		else
 			musb->xceiv->state = OTG_STATE_A_IDLE;
+*/
+		if (devctl & MUSB_DEVCTL_HM) {
+ 			musb->xceiv->state = OTG_STATE_A_IDLE;
+		} else {
+			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl |
+				    MUSB_DEVCTL_SESSION);
+		}
 		break;
 	default:
 		break;
