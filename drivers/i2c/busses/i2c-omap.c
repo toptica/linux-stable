@@ -566,7 +566,7 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 
 			/* Let the user know if i2c is in a bad state */
 			if (time_after(jiffies, delay)) {
-				dev_err(dev->dev, "controller timed out "
+				dev_crit(dev->dev, "controller timed out "
 				"waiting for start condition to finish\n");
 				return -ETIMEDOUT;
 			}
@@ -623,15 +623,22 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct omap_i2c_dev *dev = i2c_get_adapdata(adap);
 	int i;
-	int r;
+	int r, w;
 
 	r = pm_runtime_get_sync(dev->dev);
 	if (IS_ERR_VALUE(r))
 		goto out;
 
 	r = omap_i2c_wait_for_bb(dev);
-	if (r < 0)
-		goto out;
+	if (r < 0) {
+		dev_crit(dev->dev, "resetting i2c bus and trying again ...(1)\n");
+		omap_i2c_init(dev);
+		r = omap_i2c_wait_for_bb(dev);
+		if (r < 0)
+			goto out;
+		else
+			dev_err(dev->dev, "reset successful ...(1)\n");
+	}
 
 	if (dev->set_mpu_wkup_lat != NULL)
 		dev->set_mpu_wkup_lat(dev->dev, dev->latency);
@@ -648,7 +655,15 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (r == 0)
 		r = num;
 
-	omap_i2c_wait_for_bb(dev);
+	w = omap_i2c_wait_for_bb(dev);
+	if (w < 0) {
+		dev_crit(dev->dev, "resetting i2c bus and trying again ...(2)\n");
+		omap_i2c_init(dev);
+		w = omap_i2c_wait_for_bb(dev);
+		if (w >= 0)
+			dev_err(dev->dev, "reset successful ...(2)\n");
+	}
+	
 out:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
@@ -928,6 +943,10 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 		/*
 		 * ProDB0017052: Clear ARDY bit twice
 		 */
+		 
+		if (stat & OMAP_I2C_STAT_ARDY)  /* Arno: from patch found in internet https://patches.linaro.org/20852/ */
+			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_ARDY);
+			
 		if (stat & (OMAP_I2C_STAT_ARDY | OMAP_I2C_STAT_NACK |
 					OMAP_I2C_STAT_AL)) {
 			omap_i2c_ack_stat(dev, (OMAP_I2C_STAT_RRDY |
@@ -1181,7 +1200,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
-	adap->class = I2C_CLASS_HWMON;
+	adap->class = 0;	/* Arno: remove HWMON flag to avoid auto-probing */
 	strlcpy(adap->name, "OMAP I2C adapter", sizeof(adap->name));
 	adap->algo = &omap_i2c_algo;
 	adap->dev.parent = &pdev->dev;
