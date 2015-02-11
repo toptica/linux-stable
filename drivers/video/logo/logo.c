@@ -75,6 +75,10 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* DEC Linux logo on MIPS/MIPS64 or ALPHA */
 		logo = &logo_dec_clut224;
 #endif
+#ifdef CONFIG_LOGO_TOPTICA_CLUT224
+		/* Toptica boot logo */
+		logo = &logo_toptica_clut224;
+#endif 
 #ifdef CONFIG_LOGO_MAC_CLUT224
 		/* Macintosh Linux logo on m68k */
 		if (MACH_IS_MAC)

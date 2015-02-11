@@ -10,6 +10,10 @@ menuconfig LOGO
 
 if LOGO
 
+config LOGO_TOPTICA_CLUT224
+	bool "Toptica bootlogo"
+	default y
+
 config FB_LOGO_EXTRA
 	bool
 	depends on FB=y
