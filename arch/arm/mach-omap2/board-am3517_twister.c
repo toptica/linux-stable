@@ -21,6 +21,7 @@
 #include <linux/input/edt-ft5x06.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/i2c-mux.h>
+#include <linux/i2c/at24.h>
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #define TAM3517_SMSC911X_IRQ_GPIO_PATH "sdmmc1_clk.gpio_120"
@@ -259,6 +260,12 @@ static void inline edt_ft5x06_dev_init(void)
 
 #define I_OPC	1
 
+struct at24_platform_data dlcpro_eeprom_data = {
+	.byte_len = 8192,
+	.page_size = 32,
+	.flags = AT24_FLAG_ADDR16 | AT24_FLAG_IRUGO,
+};
+
 static struct i2c_board_info __initdata tam3517_i2c2_devices[] = {
      [0] = {
 				/* GPIO on power supply */
@@ -284,10 +291,12 @@ static struct i2c_board_info __initdata tam3517_i2c2_devices[] = {
      [5] = {
 				/* EEPROM on power supply */
                 I2C_BOARD_INFO("24c64", 0x55),
+                .platform_data = &dlcpro_eeprom_data,
            },
      [6] = {
 				/* EEPROM on backplane */
                 I2C_BOARD_INFO("24c64", 0x53),
+                .platform_data = &dlcpro_eeprom_data,
            },
      [7]= {
 				/* pressure sensor on MC*/
@@ -314,6 +323,7 @@ static struct i2c_board_info __initdata tam3517_i2c3_devices[] = {
 				I2C_BOARD_INFO("mcp7941x", 0x6F),
 		},{
                 I2C_BOARD_INFO("24c64", 0x50),
+                .platform_data = &dlcpro_eeprom_data,
         },
 };
 
@@ -323,6 +333,7 @@ static struct i2c_board_info __initdata dlcpro_board_info[] = {
         },
         {       /* EEPROM on slot */
                 I2C_BOARD_INFO("24c64", 0x50),
+                .platform_data = &dlcpro_eeprom_data,
         },
 };
 
@@ -333,6 +344,7 @@ static struct i2c_board_info __initdata dlcpro_laserhead_info[] = {
 		},
         {   /* EEPROM on laserheads */
             I2C_BOARD_INFO("24c64", 0x50),
+            .platform_data = &dlcpro_eeprom_data,
         },
 };
 
