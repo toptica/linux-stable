@@ -444,6 +444,16 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	/* GPIO91 for MC boards */
 	OMAP3_MUX(DSS_DATA21, OMAP_MUX_MODE0 | OMAP_PIN_INPUT),
+	
+	/* moving UART2 to different pins, for Flatpack compatibility */
+	OMAP3_MUX(MCBSP3_CLKX, OMAP_MUX_MODE1), /* TX for UART2*/
+	OMAP3_MUX(MCBSP3_FSX, OMAP_MUX_MODE1 | OMAP_PIN_INPUT), /* RX for UART2*/
+	
+	OMAP3_MUX(UART2_TX, OMAP_MUX_MODE4 | OMAP_PIN_INPUT), /* make original TX pin passive */
+	OMAP3_MUX(UART2_RX, OMAP_MUX_MODE4 | OMAP_PIN_INPUT), /* make original RX pin passive */
+	
+	OMAP3_MUX(UART3_CTS_RCTX, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT), /* GPIO 163 for THz */
+	OMAP3_MUX(UART3_RTS_SD, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT), /* GPIO 164 for THz*/
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
