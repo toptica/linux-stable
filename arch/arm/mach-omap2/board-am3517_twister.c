@@ -805,10 +805,37 @@ static void __init tam3517_init(void)
 
 	/* temporary test of other gpios */
 	pin_mux_input(95, "gpio95" );
-	pin_mux_input(96, "gpio96" );
-	pin_mux_input(97, "gpio97" );
-	pin_mux_input(98, "gpio98" );
 	pin_mux_input(99, "gpio99" );
+	
+	/* interrupt lines for MC FPGA */
+	pin_mux_input(117, "FPGA-gpio117" );
+	pin_mux_input(118, "FPGA-gpio118" );
+	pin_mux_input(119, "FPGA-gpio119" );
+	pin_mux_input(141, "FPGA-gpio141" );
+	pin_mux_input(140, "FPGA-gpio140" );
+	pin_mux_input(152, "FPGA-gpio152" );
+	pin_mux_input(153, "FPGA-gpio153" );
+	pin_mux_input(154, "FPGA-gpio154" );
+	pin_mux_input(155, "FPGA-gpio155" );
+	pin_mux_input(150, "FPGA-gpio150" );
+	pin_mux_input(149, "FPGA-gpio149" );
+	pin_mux_input(151, "FPGA-gpio151" );
+	pin_mux_input(148, "FPGA-gpio148" );
+	
+	/* interrupt lines for modules */
+	pin_mux_input(128, "Slot-S1-gpio128" );
+	pin_mux_input(124, "Slot-S2-gpio124" );
+	pin_mux_input(125, "Slot-S3-gpio125" );
+	pin_mux_input(96,  "Slot-S4-gpio96" );
+	
+	pin_mux_input(98,  "Slot-M1-gpio98" );
+	pin_mux_input(122, "Slot-M2-gpio122" );
+	pin_mux_input(123, "Slot-M3-gpio123" );
+	pin_mux_input(97,  "Slot-M4-gpio97" );
+	
+	pin_mux_input(29,  "Slot-E-gpio29" );
+	
+	pin_mux_input(121, "Slot-F-gpio121" );
 	
 	/* JTAG for FPGA configuration */
 	pin_mux_output(171, "jtag_tck" );
