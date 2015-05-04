@@ -221,19 +221,34 @@ static struct i2c_board_info __initdata tam3517_i2c1_devices[] = {
         },
 };
 
+/*
+ * Flatpack LEDs
+ */
+static struct led_info flatpack_front_leds_info[8] = {
+		{.name ="red_1", .default_trigger = NULL, .flags = 0,},
+		{.name ="grn_1", .default_trigger = NULL, .flags = 0,},
+		{.name ="red_3", .default_trigger = NULL, .flags = 0,},
+		{.name ="grn_3", .default_trigger = NULL, .flags = 0,},
+		{.name ="red_2", .default_trigger = NULL, .flags = 0,},
+		{.name ="grn_2", .default_trigger = NULL, .flags = 0,},
+		{.name ="red_4", .default_trigger = NULL, .flags = 0,},
+		{.name ="grn_4", .default_trigger = NULL, .flags = 0,},
+};
 
+static struct led_platform_data flatpack_front_leds = {
+		.num_leds = 8,
+		.leds = flatpack_front_leds_info,
+};
+
+/*
+ * DLCpro Touchscreen and OPC stuff
+ */
 
 #define TOPTICA_TS_IRQ_PIN  138
 #define TOPTICA_TS_RST_PIN  116
 #define TOPTICA_TS_WAKE_PIN  117
 
-
 #define TOPTICA_OPC_IRQ_PIN 127
-
-//#define TOPTICA_OPC_IRQ_PIN 118
-
-
-
 
 static struct edt_ft5x06_platform_data edt_ft5x06_pdata = {
     .reset_pin = TOPTICA_TS_RST_PIN,
@@ -294,11 +309,21 @@ static struct i2c_board_info __initdata tam3517_i2c2_devices[] = {
                 .platform_data = &dlcpro_eeprom_data,
            },
      [6] = {
-				/* EEPROM on backplane */
+				/* EEPROM on backplane Flatpack*/
+                I2C_BOARD_INFO("24c64", 0x52),
+				.platform_data = &dlcpro_eeprom_data,
+           },
+     [7] = {
+				/* EEPROM on backplane DLCpro*/
                 I2C_BOARD_INFO("24c64", 0x53),
                 .platform_data = &dlcpro_eeprom_data,
            },
-     [7]= {
+	 [8] = { 
+				/* LEDs Flatpack*/
+				I2C_BOARD_INFO("pca9551", 0x63),
+				.platform_data = &flatpack_front_leds,
+			},           
+     [9]= {
 				/* pressure sensor on MC*/
         		I2C_BOARD_INFO("bmp180", 0x77),
         	},
@@ -539,8 +564,6 @@ static inline void __init tam3517_gpio_keys_init(void) { return; }
 #endif
 
 
-#define TS_IRQ_PIN	136
-
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type	= MUSB_INTERFACE_ULPI,
 	.mode		= MUSB_OTG,
@@ -745,10 +768,10 @@ static __init void disira_fgpa_config_cs_init(void)
 }
 
 
-# define pin_mux_output(pin, name) \
+# define pin_mux_output(pin, name, start) \
 	omap_mux_init_gpio(pin, OMAP_PIN_OUTPUT); \
 	gpio_request(pin, name); \
-	gpio_direction_output(pin, 1); \
+	gpio_direction_output(pin, start); \
     gpio_export(pin, 1)
 
 # define pin_mux_input(pin, name) \
@@ -822,7 +845,7 @@ static void __init tam3517_init(void)
 	pin_mux_input(94, "laser_enable");
 
 	/* front USB power enable */
-	pin_mux_output(90, "USB-power");
+	pin_mux_output(90, "USB-power", 1);
 
 
 	/* temporary test of other gpios */
@@ -860,10 +883,14 @@ static void __init tam3517_init(void)
 	pin_mux_input(121, "Slot-F-gpio121" );
 	
 	/* JTAG for FPGA configuration */
-	pin_mux_output(171, "jtag_tck" );
-	pin_mux_output(172, "jtag_tdi" );
+	pin_mux_output(171, "jtag_tck", 1);
+	pin_mux_output(172, "jtag_tdi", 1);
 	pin_mux_input(173, "jtag_tdo" );
-	pin_mux_output(174, "jtag_tms" );
+	pin_mux_output(174, "jtag_tms", 1);
+	
+	/* THz GPIOs */
+	pin_mux_output(163, "gpio163", 0); 
+	pin_mux_output(164, "gpio164", 0); 
 
 }
 
