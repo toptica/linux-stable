@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/clk.h>
@@ -60,35 +61,35 @@
 #define DMA_BUCR(x) (0x98 + ((x) << 6))	/* Bus Utilization Registers */
 #define DMA_CCNR(x) (0x9C + ((x) << 6))	/* Channel counter Registers */
 
-#define DCR_DRST           (1<<1)
-#define DCR_DEN            (1<<0)
-#define DBTOCR_EN          (1<<15)
-#define DBTOCR_CNT(x)      ((x) & 0x7fff)
-#define CNTR_CNT(x)        ((x) & 0xffffff)
-#define CCR_ACRPT          (1<<14)
-#define CCR_DMOD_LINEAR    (0x0 << 12)
-#define CCR_DMOD_2D        (0x1 << 12)
-#define CCR_DMOD_FIFO      (0x2 << 12)
+#define DCR_DRST	   (1<<1)
+#define DCR_DEN		   (1<<0)
+#define DBTOCR_EN	   (1<<15)
+#define DBTOCR_CNT(x)	   ((x) & 0x7fff)
+#define CNTR_CNT(x)	   ((x) & 0xffffff)
+#define CCR_ACRPT	   (1<<14)
+#define CCR_DMOD_LINEAR	   (0x0 << 12)
+#define CCR_DMOD_2D	   (0x1 << 12)
+#define CCR_DMOD_FIFO	   (0x2 << 12)
 #define CCR_DMOD_EOBFIFO   (0x3 << 12)
-#define CCR_SMOD_LINEAR    (0x0 << 10)
-#define CCR_SMOD_2D        (0x1 << 10)
-#define CCR_SMOD_FIFO      (0x2 << 10)
+#define CCR_SMOD_LINEAR	   (0x0 << 10)
+#define CCR_SMOD_2D	   (0x1 << 10)
+#define CCR_SMOD_FIFO	   (0x2 << 10)
 #define CCR_SMOD_EOBFIFO   (0x3 << 10)
-#define CCR_MDIR_DEC       (1<<9)
-#define CCR_MSEL_B         (1<<8)
-#define CCR_DSIZ_32        (0x0 << 6)
-#define CCR_DSIZ_8         (0x1 << 6)
-#define CCR_DSIZ_16        (0x2 << 6)
-#define CCR_SSIZ_32        (0x0 << 4)
-#define CCR_SSIZ_8         (0x1 << 4)
-#define CCR_SSIZ_16        (0x2 << 4)
-#define CCR_REN            (1<<3)
-#define CCR_RPT            (1<<2)
-#define CCR_FRC            (1<<1)
-#define CCR_CEN            (1<<0)
-#define RTOR_EN            (1<<15)
-#define RTOR_CLK           (1<<14)
-#define RTOR_PSC           (1<<13)
+#define CCR_MDIR_DEC	   (1<<9)
+#define CCR_MSEL_B	   (1<<8)
+#define CCR_DSIZ_32	   (0x0 << 6)
+#define CCR_DSIZ_8	   (0x1 << 6)
+#define CCR_DSIZ_16	   (0x2 << 6)
+#define CCR_SSIZ_32	   (0x0 << 4)
+#define CCR_SSIZ_8	   (0x1 << 4)
+#define CCR_SSIZ_16	   (0x2 << 4)
+#define CCR_REN		   (1<<3)
+#define CCR_RPT		   (1<<2)
+#define CCR_FRC		   (1<<1)
+#define CCR_CEN		   (1<<0)
+#define RTOR_EN		   (1<<15)
+#define RTOR_CLK	   (1<<14)
+#define RTOR_PSC	   (1<<13)
 
 /*
  * struct imx_dma_channel - i.MX specific DMA extension
@@ -150,13 +151,17 @@ static inline int imx_dma_sg_next(int channel, struct scatterlist *sg)
 	unsigned long now;
 
 	if (!imxdma->name) {
-		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
+		printk(KERN_CRIT "%s: called for unallocated channel %d\n",
 		       __func__, channel);
 		return 0;
 	}
 
-	now = min(imxdma->resbytes, sg->length);
-	imxdma->resbytes -= now;
+	if (imxdma->resbytes != MXC_DMA_SIZE_UNLIMITED) {
+		now = min(imxdma->resbytes, sg->length);
+		imxdma->resbytes -= now;
+	} else {
+		now = sg->length;
+	}
 
 	if ((imxdma->dma_mode & DMA_MODE_MASK) == DMA_MODE_READ)
 		__raw_writel(sg->dma_address, DMA_BASE + DMA_DAR(channel));
@@ -195,6 +200,9 @@ imx_dma_setup_single(int channel, dma_addr_t dma_address,
 		     unsigned int dmamode)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
+
+	if (channel < 0 || channel >= IMX_DMA_CHANNELS)
+		return -EINVAL;
 
 	imxdma->sg = NULL;
 	imxdma->dma_mode = dmamode;
@@ -291,6 +299,10 @@ imx_dma_setup_sg(int channel,
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 
+	if (channel < 0 || channel >= IMX_DMA_CHANNELS)
+		return -EINVAL;
+	if (imxdma->name == NULL)
+		return -ENODEV;
 	if (imxdma->in_use)
 		return -EBUSY;
 
@@ -345,6 +357,11 @@ imx_dma_config_channel(int channel, unsigned int config_port,
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 	u32 dreq = 0;
 
+	if (channel < 0 || channel >= IMX_DMA_CHANNELS)
+		return -EINVAL;
+	if (imxdma->name == NULL)
+		return -ENODEV;
+
 	imxdma->hw_chaining = 0;
 
 	if (hw_chaining) {
@@ -367,6 +384,7 @@ EXPORT_SYMBOL(imx_dma_config_channel);
 
 void imx_dma_config_burstlen(int channel, unsigned int burstlen)
 {
+	BUG_ON(channel < 0 || channel >= IMX_DMA_CHANNELS);
 	__raw_writel(burstlen, DMA_BASE + DMA_BLR(channel));
 }
 EXPORT_SYMBOL(imx_dma_config_burstlen);
@@ -389,20 +407,26 @@ imx_dma_setup_handlers(int channel,
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 	unsigned long flags;
+	int ret = 0;
 
-	if (!imxdma->name) {
-		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
-		       __func__, channel);
+	if (channel < 0 || channel >= IMX_DMA_CHANNELS)
+		return -EINVAL;
+	if (imxdma->name == NULL)
 		return -ENODEV;
-	}
 
 	local_irq_save(flags);
-	__raw_writel(1 << channel, DMA_BASE + DMA_DISR);
-	imxdma->irq_handler = irq_handler;
-	imxdma->err_handler = err_handler;
-	imxdma->data = data;
+	if (imxdma->name) {
+		__raw_writel(1 << channel, DMA_BASE + DMA_DISR);
+		imxdma->irq_handler = irq_handler;
+		imxdma->err_handler = err_handler;
+		imxdma->data = data;
+	} else {
+		ret = -ENODEV;
+		printk(KERN_CRIT "%s: called for unallocated channel %d\n",
+		       __func__, channel);
+	}
 	local_irq_restore(flags);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(imx_dma_setup_handlers);
 
@@ -418,17 +442,23 @@ imx_dma_setup_progression_handler(int channel,
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 	unsigned long flags;
+	int ret = 0;
 
-	if (!imxdma->name) {
-		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
-		       __func__, channel);
+	if (channel < 0 || channel >= IMX_DMA_CHANNELS)
+		return -EINVAL;
+	if (imxdma->name == NULL)
 		return -ENODEV;
-	}
 
 	local_irq_save(flags);
-	imxdma->prog_handler = prog_handler;
+	if (imxdma->name) {
+		imxdma->prog_handler = prog_handler;
+	} else {
+		printk(KERN_CRIT "%s: called for unallocated channel %d\n",
+		       __func__, channel);
+		ret = -ENODEV;
+	}
 	local_irq_restore(flags);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(imx_dma_setup_progression_handler);
 
@@ -448,18 +478,21 @@ void imx_dma_enable(int channel)
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 	unsigned long flags;
 
+	BUG_ON(channel < 0 || channel >= IMX_DMA_CHANNELS);
+	BUG_ON(imxdma->name == NULL);
+
 	pr_debug("imxdma%d: imx_dma_enable\n", channel);
 
+	local_irq_save(flags);
 	if (!imxdma->name) {
-		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
+		printk(KERN_CRIT "%s: called for unallocated channel %d\n",
 		       __func__, channel);
-		return;
+		goto out;
 	}
 
-	if (imxdma->in_use)
-		return;
-
-	local_irq_save(flags);
+	if (imxdma->in_use) {
+		goto out;
+	}
 
 	__raw_writel(1 << channel, DMA_BASE + DMA_DISR);
 	__raw_writel(__raw_readl(DMA_BASE + DMA_DIMR) & ~(1 << channel),
@@ -481,7 +514,7 @@ void imx_dma_enable(int channel)
 	}
 #endif
 	imxdma->in_use = 1;
-
+ out:
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(imx_dma_enable);
@@ -495,10 +528,13 @@ void imx_dma_disable(int channel)
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 	unsigned long flags;
 
+	BUG_ON(channel < 0 || channel >= IMX_DMA_CHANNELS);
+	BUG_ON(imxdma->name == NULL);
+
 	pr_debug("imxdma%d: imx_dma_disable\n", channel);
 
 	if (imx_dma_hw_chain(imxdma))
-		del_timer(&imxdma->watchdog);
+		del_timer_sync(&imxdma->watchdog);
 
 	local_irq_save(flags);
 	__raw_writel(__raw_readl(DMA_BASE + DMA_DIMR) | (1 << channel),
@@ -625,18 +661,14 @@ static void dma_irq_handle_channel(int chno)
 			}
 
 			__raw_writel(tmp, DMA_BASE + DMA_CCR(chno));
-
-			if (imxdma->prog_handler)
-				imxdma->prog_handler(chno, imxdma->data,
-						current_sg);
-
-			return;
 		}
-
-		if (imx_dma_hw_chain(imxdma)) {
-			del_timer(&imxdma->watchdog);
-			return;
-		}
+		if (imxdma->prog_handler)
+			imxdma->prog_handler(chno, imxdma->data,
+					current_sg);
+		return;
+	}
+	if (imx_dma_hw_chain(imxdma)) {
+		del_timer_sync(&imxdma->watchdog);
 	}
 
 	__raw_writel(0, DMA_BASE + DMA_CCR(chno));
@@ -648,7 +680,9 @@ static void dma_irq_handle_channel(int chno)
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
 	int i, disr;
+	unsigned long flags;
 
+	local_irq_save(flags);
 #ifdef CONFIG_ARCH_MX2
 	dma_err_handler(irq, dev_id);
 #endif
@@ -664,6 +698,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 			dma_irq_handle_channel(i);
 	}
 
+	local_irq_restore(flags);
 	return IRQ_HANDLED;
 }
 
@@ -676,16 +711,16 @@ int imx_dma_request(int channel, const char *name)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 	unsigned long flags;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	/* basic sanity checks */
 	if (!name)
-		return -EINVAL;
+		return ret;
 
-	if (channel >= IMX_DMA_CHANNELS) {
-		printk(KERN_CRIT "%s: called for  non-existed channel %d\n",
+	if (channel < 0 || channel >= IMX_DMA_CHANNELS) {
+		printk(KERN_CRIT "%s: called for non-existing channel %d\n",
 		       __func__, channel);
-		return -EINVAL;
+		return ret;
 	}
 
 	local_irq_save(flags);
@@ -693,15 +728,13 @@ int imx_dma_request(int channel, const char *name)
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
-	memset(imxdma, 0, sizeof(imxdma));
 	imxdma->name = name;
-	local_irq_restore(flags); /* request_irq() can block */
+	local_irq_restore(flags);
 
 #ifdef CONFIG_ARCH_MX2
 	ret = request_irq(MXC_INT_DMACH0 + channel, dma_irq_handler, 0, "DMA",
 			NULL);
 	if (ret) {
-		imxdma->name = NULL;
 		printk(KERN_CRIT "Can't register IRQ %d for DMA channel %d\n",
 				MXC_INT_DMACH0 + channel, channel);
 		return ret;
@@ -711,7 +744,12 @@ int imx_dma_request(int channel, const char *name)
 	imxdma->watchdog.data = channel;
 #endif
 
-	return ret;
+	imxdma->irq_handler = NULL;
+	imxdma->err_handler = NULL;
+	imxdma->data = NULL;
+	imxdma->sg = NULL;
+
+	return 0;
 }
 EXPORT_SYMBOL(imx_dma_request);
 
@@ -724,22 +762,24 @@ void imx_dma_free(int channel)
 	unsigned long flags;
 	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
 
+	BUG_ON(channel < 0 || channel >= IMX_DMA_CHANNELS);
+	BUG_ON(imxdma->name == NULL);
+
+	local_irq_save(flags);
 	if (!imxdma->name) {
 		printk(KERN_CRIT
 		       "%s: trying to free free channel %d\n",
 		       __func__, channel);
-		return;
+		goto out;
 	}
 
-	local_irq_save(flags);
-	/* Disable interrupts */
 	imx_dma_disable(channel);
 	imxdma->name = NULL;
 
 #ifdef CONFIG_ARCH_MX2
 	free_irq(MXC_INT_DMACH0 + channel, NULL);
 #endif
-
+ out:
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(imx_dma_free);
@@ -764,13 +804,13 @@ int imx_dma_request_by_prio(const char *name, enum imx_dma_prio prio)
 	int best;
 
 	switch (prio) {
-	case (DMA_PRIO_HIGH):
+	case DMA_PRIO_HIGH:
 		best = 8;
 		break;
-	case (DMA_PRIO_MEDIUM):
+	case DMA_PRIO_MEDIUM:
 		best = 4;
 		break;
-	case (DMA_PRIO_LOW):
+	case DMA_PRIO_LOW:
 	default:
 		best = 0;
 		break;
@@ -790,12 +830,44 @@ int imx_dma_request_by_prio(const char *name, enum imx_dma_prio prio)
 }
 EXPORT_SYMBOL(imx_dma_request_by_prio);
 
+int imx_dma_get_count(int channel, int *count)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct imx_dma_channel *imxdma = &imx_dma_channels[channel];
+
+	local_irq_save(flags);
+	if (!imxdma->name) {
+		ret = -EINVAL;
+		goto out;
+	}
+	if (count == NULL || channel < 0 || channel >= IMX_DMA_CHANNELS) {
+		ret = -EINVAL;
+		goto out;
+	}
+	if (imxdma->sg)
+		*count = imxdma->sg->length;
+	else
+		*count = __raw_readl(DMA_BASE + DMA_CCNR(channel));
+out:
+	local_irq_restore(flags);
+	return ret;
+}
+EXPORT_SYMBOL(imx_dma_get_count);
+
 static int __init imx_dma_init(void)
 {
 	int ret = 0;
 	int i;
 
 	dma_clk = clk_get(NULL, "dma");
+	if (WARN_ON(IS_ERR(dma_clk))) {
+		ret = PTR_ERR(dma_clk);
+		printk(KERN_ERR "Failed to get DMA clock: %d\n", ret);
+		dma_clk = NULL;
+		return ret;
+	}
+	printk(KERN_DEBUG "%s: Enabling DMA clock\n", __FUNCTION__);
 	clk_enable(dma_clk);
 
 	/* reset DMA module */

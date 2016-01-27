@@ -34,78 +34,97 @@
 #include <asm/mach/map.h>
 #include <mach/iomux.h>
 
+static void __iomem *base;
+
 void mxc_gpio_mode(int gpio_mode)
 {
 	unsigned int pin = gpio_mode & GPIO_PIN_MASK;
 	unsigned int port = (gpio_mode & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
 	unsigned int ocr = (gpio_mode & GPIO_OCR_MASK) >> GPIO_OCR_SHIFT;
+	int ocr_shift = (pin % 16) << 1;
 	unsigned int tmp;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	/* Pullup enable */
-	tmp = __raw_readl(VA_GPIO_BASE + MXC_PUEN(port));
+	tmp = __raw_readl(base + MXC_PUEN(port));
 	if (gpio_mode & GPIO_PUEN)
-		tmp |= (1 << pin);
-	else
-		tmp &= ~(1 << pin);
-	__raw_writel(tmp, VA_GPIO_BASE + MXC_PUEN(port));
-
-	/* Data direction */
-	tmp = __raw_readl(VA_GPIO_BASE + MXC_DDIR(port));
-	if (gpio_mode & GPIO_OUT)
-		tmp |= 1 << pin;
-	else
-		tmp &= ~(1 << pin);
-	__raw_writel(tmp, VA_GPIO_BASE + MXC_DDIR(port));
+		__raw_writel(tmp | (1 << pin), base + MXC_PUEN(port));
 
 	/* Primary / alternate function */
-	tmp = __raw_readl(VA_GPIO_BASE + MXC_GPR(port));
+	tmp = __raw_readl(base + MXC_GPR(port));
 	if (gpio_mode & GPIO_AF)
 		tmp |= (1 << pin);
 	else
 		tmp &= ~(1 << pin);
-	__raw_writel(tmp, VA_GPIO_BASE + MXC_GPR(port));
+	__raw_writel(tmp, base + MXC_GPR(port));
+
+	if (pin < 16) {
+		tmp = __raw_readl(base + MXC_OCR1(port));
+		tmp &= ~(3 << ocr_shift);
+		tmp |= (ocr << ocr_shift);
+		__raw_writel(tmp, base + MXC_OCR1(port));
+
+		tmp = __raw_readl(base + MXC_ICONFA1(port));
+		tmp &= ~(3 << ocr_shift);
+		tmp |= ((gpio_mode >> GPIO_AOUT_SHIFT) & 3) << ocr_shift;
+		__raw_writel(tmp, base + MXC_ICONFA1(port));
+
+		tmp = __raw_readl(base + MXC_ICONFB1(port));
+		tmp &= ~(3 << ocr_shift);
+		tmp |= ((gpio_mode >> GPIO_BOUT_SHIFT) & 3) << ocr_shift;
+		__raw_writel(tmp, base + MXC_ICONFB1(port));
+	} else {
+		tmp = __raw_readl(base + MXC_OCR2(port));
+		tmp &= ~(3 << ocr_shift);
+		tmp |= (ocr << ocr_shift);
+		__raw_writel(tmp, base + MXC_OCR2(port));
+
+		tmp = __raw_readl(base + MXC_ICONFA2(port));
+		tmp &= ~(3 << ocr_shift);
+		tmp |= ((gpio_mode >> GPIO_AOUT_SHIFT) & 3) << ocr_shift;
+		__raw_writel(tmp, base + MXC_ICONFA2(port));
+
+		tmp = __raw_readl(base + MXC_ICONFB2(port));
+		tmp &= ~(3 << ocr_shift);
+		tmp |= ((gpio_mode >> GPIO_BOUT_SHIFT) & 3) << ocr_shift;
+		__raw_writel(tmp, base + MXC_ICONFB2(port));
+	}
+
+	/* Data direction */
+	if (gpio_mode & GPIO_OUT) {
+		if (gpio_mode & GPIO_DFLT_HIGH) {
+			tmp = __raw_readl(base + MXC_DR(port));
+			tmp |= 1 << pin;
+			__raw_writel(tmp, base + MXC_DR(port));
+		} else if (gpio_mode & GPIO_DFLT_LOW) {
+			tmp = __raw_readl(base + MXC_DR(port));
+			tmp &= ~(1 << pin);
+			__raw_writel(tmp, base + MXC_DR(port));
+		}
+		tmp = __raw_readl(base + MXC_DDIR(port));
+		tmp |= 1 << pin;
+	} else {
+		tmp = __raw_readl(base + MXC_DDIR(port));
+		tmp &= ~(1 << pin);
+	}
+	__raw_writel(tmp, base + MXC_DDIR(port));
 
 	/* use as gpio? */
-	tmp = __raw_readl(VA_GPIO_BASE + MXC_GIUS(port));
+	tmp = __raw_readl(base + MXC_GIUS(port));
 	if (gpio_mode & (GPIO_PF | GPIO_AF))
 		tmp &= ~(1 << pin);
 	else
 		tmp |= (1 << pin);
-	__raw_writel(tmp, VA_GPIO_BASE + MXC_GIUS(port));
+	__raw_writel(tmp, base + MXC_GIUS(port));
 
-	if (pin < 16) {
-		tmp = __raw_readl(VA_GPIO_BASE + MXC_OCR1(port));
-		tmp &= ~(3 << (pin * 2));
-		tmp |= (ocr << (pin * 2));
-		__raw_writel(tmp, VA_GPIO_BASE + MXC_OCR1(port));
+	/* Pullup disable */
+	tmp = __raw_readl(base + MXC_PUEN(port));
+	if (!(gpio_mode & GPIO_PUEN))
+		__raw_writel(tmp & ~(1 << pin), base + MXC_PUEN(port));
 
-		tmp = __raw_readl(VA_GPIO_BASE + MXC_ICONFA1(port));
-		tmp &= ~(3 << (pin * 2));
-		tmp |= ((gpio_mode >> GPIO_AOUT_SHIFT) & 3) << (pin * 2);
-		__raw_writel(tmp, VA_GPIO_BASE + MXC_ICONFA1(port));
-
-		tmp = __raw_readl(VA_GPIO_BASE + MXC_ICONFB1(port));
-		tmp &= ~(3 << (pin * 2));
-		tmp |= ((gpio_mode >> GPIO_BOUT_SHIFT) & 3) << (pin * 2);
-		__raw_writel(tmp, VA_GPIO_BASE + MXC_ICONFB1(port));
-	} else {
-		pin -= 16;
-
-		tmp = __raw_readl(VA_GPIO_BASE + MXC_OCR2(port));
-		tmp &= ~(3 << (pin * 2));
-		tmp |= (ocr << (pin * 2));
-		__raw_writel(tmp, VA_GPIO_BASE + MXC_OCR2(port));
-
-		tmp = __raw_readl(VA_GPIO_BASE + MXC_ICONFA2(port));
-		tmp &= ~(3 << (pin * 2));
-		tmp |= ((gpio_mode >> GPIO_AOUT_SHIFT) & 3) << (pin * 2);
-		__raw_writel(tmp, VA_GPIO_BASE + MXC_ICONFA2(port));
-
-		tmp = __raw_readl(VA_GPIO_BASE + MXC_ICONFB2(port));
-		tmp &= ~(3 << (pin * 2));
-		tmp |= ((gpio_mode >> GPIO_BOUT_SHIFT) & 3) << (pin * 2);
-		__raw_writel(tmp, VA_GPIO_BASE + MXC_ICONFB2(port));
-	}
+	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(mxc_gpio_mode);
 
@@ -155,3 +174,7 @@ void mxc_gpio_release_multiple_pins(const int *pin_list, int count)
 }
 EXPORT_SYMBOL(mxc_gpio_release_multiple_pins);
 
+void __init mxc_iomux_init(void __iomem *iomux_base)
+{
+	base = iomux_base;
+}

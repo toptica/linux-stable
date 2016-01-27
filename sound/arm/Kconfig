@@ -39,5 +39,32 @@ config SND_PXA2XX_AC97
 	  Say Y or M if you want to support any AC97 codec attached to
 	  the PXA2xx AC97 interface.
 
+config SND_MX27_PCM
+	tristate
+	depends on ARCH_MX2
+	select SND_PCM
+
+config SND_MX25_PCM
+	tristate
+	depends on ARCH_MX25
+	select SND_PCM
+
+config SND_MX51_PCM
+	tristate
+	depends on ARCH_MX51
+	select SND_PCM
+
+config SND_MXC_AC97
+	tristate "AC97 driver for the Freescale i.MX chips"
+	depends on ARCH_MXC && SND
+	select MXC_AUDMUX
+	select MXC_SSI_PORTS
+	select SND_MX27_PCM if ARCH_MX2
+	select SND_MX25_PCM if ARCH_MX25
+	select SND_MX51_PCM if ARCH_MX51
+	select SND_AC97_CODEC
+	help
+	  Say Y or M if you want to support any AC97 codec attached to
+	  the i.MX27 or i.MX25 SSI interface configured for AC97 operation.
 endif	# SND_ARM
 

@@ -133,7 +133,7 @@ unsigned int probe_irq_mask(unsigned long val)
 		status = desc->status;
 
 		if (status & IRQ_AUTODETECT) {
-			if (i < 16 && !(status & IRQ_WAITING))
+			if (i < 32 && !(status & IRQ_WAITING))
 				mask |= 1 << i;
 
 			desc->status = status & ~IRQ_AUTODETECT;

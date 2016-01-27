@@ -137,7 +137,6 @@ static inline int ucb1400_ts_pen_down(struct snd_ac97 *ac97)
 static inline void ucb1400_ts_irq_enable(struct snd_ac97 *ac97)
 {
 	ucb1400_reg_write(ac97, UCB_IE_CLEAR, UCB_IE_TSPX);
-	ucb1400_reg_write(ac97, UCB_IE_CLEAR, 0);
 	ucb1400_reg_write(ac97, UCB_IE_FAL, UCB_IE_TSPX);
 }
 
@@ -168,7 +167,6 @@ static void ucb1400_handle_pending_irq(struct ucb1400_ts *ucb)
 
 	isr = ucb1400_reg_read(ucb->ac97, UCB_IE_STATUS);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, isr);
-	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0);
 
 	if (isr & UCB_IE_TSPX)
 		ucb1400_ts_irq_disable(ucb->ac97);
@@ -309,7 +307,6 @@ static int ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
 	ucb1400_reg_write(ucb->ac97, UCB_IE_RIS, UCB_IE_ADC);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_FAL, UCB_IE_ADC);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0xffff);
-	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0);
 
 	/* Cause an ADC interrupt. */
 	ucb1400_reg_write(ucb->ac97, UCB_ADC_CR, UCB_ADC_ENA);
@@ -332,11 +329,10 @@ static int ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
 	ucb1400_reg_write(ucb->ac97, UCB_IE_RIS, 0);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_FAL, 0);
 	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0xffff);
-	ucb1400_reg_write(ucb->ac97, UCB_IE_CLEAR, 0);
 
 	/* Read triggered interrupt. */
 	ucb->irq = probe_irq_off(mask);
-	if (ucb->irq < 0 || ucb->irq == NO_IRQ)
+	if (ucb->irq <= 0 || ucb->irq == NO_IRQ)
 		return -ENODEV;
 
 	return 0;
@@ -362,7 +358,7 @@ static int ucb1400_ts_probe(struct platform_device *dev)
 
 	init_waitqueue_head(&ucb->ts_wait);
 
-	error = request_irq(ucb->irq, ucb1400_hard_irq, IRQF_TRIGGER_RISING,
+	error = request_irq(ucb->irq, ucb1400_hard_irq, IRQF_TRIGGER_HIGH,
 				"UCB1400", ucb);
 	if (error) {
 		printk(KERN_ERR "ucb1400: unable to grab irq%d: %d\n",

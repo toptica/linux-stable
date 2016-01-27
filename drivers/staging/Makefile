@@ -45,3 +45,6 @@ obj-$(CONFIG_VT6655)		+= vt6655/
 obj-$(CONFIG_USB_CPC)		+= cpc-usb/
 obj-$(CONFIG_RDC_17F3101X)	+= pata_rdc/
 obj-$(CONFIG_FB_UDL)		+= udlfb/
+obj-$(CONFIG_MXC_IPU)		+= mxc-ipu/
+obj-$(CONFIG_MXC_VPU)		+= mxc-vpu/
+obj-$(CONFIG_VIDEO_MXC_OUTPUT)	+= mxc-v4l/

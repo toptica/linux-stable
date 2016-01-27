@@ -2105,7 +2105,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 		if (!(ac97->scaps & (AC97_SCAP_SKIP_AUDIO|AC97_SCAP_SKIP_MODEM)))
 			snd_printk(KERN_ERR "AC'97 %d access error (not audio or modem codec)\n", ac97->num);
 		snd_ac97_free(ac97);
-		return -EACCES;
+		return -EIO;
 	}
 
 	if (bus->ops->reset) // FIXME: always skipping?

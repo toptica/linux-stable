@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
+#include <mach/iomux.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
@@ -36,7 +37,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 	 * - and some reserved space
 	 */
 	{
-		.virtual = AIPI_BASE_ADDR_VIRT,
+		.virtual = (unsigned long)AIPI_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(AIPI_BASE_ADDR),
 		.length = AIPI_SIZE,
 		.type = MT_DEVICE
@@ -47,7 +48,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 	 * - ATA
 	 */
 	{
-		.virtual = SAHB1_BASE_ADDR_VIRT,
+		.virtual = (unsigned long)SAHB1_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(SAHB1_BASE_ADDR),
 		.length = SAHB1_SIZE,
 		.type = MT_DEVICE
@@ -57,7 +58,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 	 * - EMI
 	 */
 	{
-		.virtual = X_MEMC_BASE_ADDR_VIRT,
+		.virtual = (unsigned long)X_MEMC_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(X_MEMC_BASE_ADDR),
 		.length = X_MEMC_SIZE,
 		.type = MT_DEVICE
@@ -72,6 +73,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 void __init mx21_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX21);
+	mxc_arch_reset_init(MX2_IO_ADDRESS(WDOG_BASE_ADDR));
 
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
@@ -79,7 +81,19 @@ void __init mx21_map_io(void)
 void __init mx27_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX27);
+	mxc_iomux_init(MX2_IO_ADDRESS(GPIO_BASE_ADDR));
+	mxc_arch_reset_init(MX2_IO_ADDRESS(WDOG_BASE_ADDR));
 
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+}
+
+void __init mx27_init_irq(void)
+{
+	mxc_init_irq(MX2_IO_ADDRESS(AVIC_BASE_ADDR));
+}
+
+void __init mx21_init_irq(void)
+{
+	mx27_init_irq();
 }
 

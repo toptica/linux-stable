@@ -449,37 +449,36 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get device resources\n");
 		return -ENOENT;
 	}
+	res_size = resource_size(res);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "can't get irq number\n");
 		return -ENOENT;
 	}
 
-	pdata = pdev->dev.platform_data;
+	if (!request_mem_region(res->start, res_size, DRIVER_NAME)) {
+		return -EBUSY;
+	}
 
+	pdata = pdev->dev.platform_data;
 	if (pdata && pdata->init) {
 		ret = pdata->init(&pdev->dev);
 		if (ret)
-			return ret;
+			goto fail0;
 	}
 
-	res_size = resource_size(res);
 	base = ioremap(res->start, res_size);
 	if (!base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -EIO;
-		goto fail0;
+		ret = -ENOMEM;
+		goto fail1;
 	}
 
 	i2c_imx = kzalloc(sizeof(struct imx_i2c_struct), GFP_KERNEL);
 	if (!i2c_imx) {
 		dev_err(&pdev->dev, "can't allocate interface\n");
 		ret = -ENOMEM;
-		goto fail1;
-	}
-
-	if (!request_mem_region(res->start, res_size, DRIVER_NAME)) {
-		ret = -EBUSY;
 		goto fail2;
 	}
 
@@ -488,7 +487,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx->adapter.owner		= THIS_MODULE;
 	i2c_imx->adapter.algo		= &i2c_imx_algo;
 	i2c_imx->adapter.dev.parent	= &pdev->dev;
-	i2c_imx->adapter.nr 		= pdev->id;
+	i2c_imx->adapter.nr		= pdev->id;
 	i2c_imx->irq			= irq;
 	i2c_imx->base			= base;
 	i2c_imx->res			= res;
@@ -536,10 +535,10 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2c_imx);
 
 	dev_dbg(&i2c_imx->adapter.dev, "claimed irq %d\n", i2c_imx->irq);
-	dev_dbg(&i2c_imx->adapter.dev, "device resources from 0x%x to 0x%x\n",
-		i2c_imx->res->start, i2c_imx->res->end);
-	dev_dbg(&i2c_imx->adapter.dev, "allocated %d bytes at 0x%x \n",
-		res_size, i2c_imx->res->start);
+	dev_dbg(&i2c_imx->adapter.dev, "device resources from 0x%x to 0x%08x\n",
+		res->start, res->end);
+	dev_dbg(&i2c_imx->adapter.dev, "allocated %d bytes at 0x%08x\n",
+		res_size, res->start);
 	dev_dbg(&i2c_imx->adapter.dev, "adapter name: \"%s\"\n",
 		i2c_imx->adapter.name);
 	dev_dbg(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
@@ -552,14 +551,14 @@ fail4:
 	clk_disable(i2c_imx->clk);
 	clk_put(i2c_imx->clk);
 fail3:
-	release_mem_region(i2c_imx->res->start, resource_size(res));
-fail2:
 	kfree(i2c_imx);
-fail1:
+fail2:
 	iounmap(base);
-fail0:
+fail1:
 	if (pdata && pdata->exit)
 		pdata->exit(&pdev->dev);
+fail0:
+	release_mem_region(res->start, resource_size(res));
 	return ret; /* Return error number */
 }
 

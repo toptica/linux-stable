@@ -640,6 +640,9 @@ static int recursion_bug;
 static int new_text_line = 1;
 static char printk_buf[1024];
 
+#ifdef CONFIG_DEBUG_LL
+extern void asmlinkage printascii(const char *);
+#endif
 asmlinkage int vprintk(const char *fmt, va_list args)
 {
 	int printed_len = 0;
@@ -710,6 +713,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		}
 	}
 
+#ifdef CONFIG_DEBUG_LL
+	printascii(printk_buf);
+#endif
 	/*
 	 * Copy the output into log_buf.  If the caller didn't provide
 	 * appropriate log level tags, we insert them here

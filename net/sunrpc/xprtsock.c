@@ -2210,7 +2210,11 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 		return ERR_PTR(-ENOMEM);
 	}
 	xprt = &new->xprt;
-
+	spin_lock_init(&xprt->transport_lock);
+	spin_lock_init(&xprt->reserve_lock);
+#if defined(CONFIG_NFS_V4_1)
+	spin_lock_init(&xprt->bc_pa_lock);
+#endif
 	xprt->max_reqs = slot_table_size;
 	xprt->slot = kcalloc(xprt->max_reqs, sizeof(struct rpc_rqst), GFP_KERNEL);
 	if (xprt->slot == NULL) {

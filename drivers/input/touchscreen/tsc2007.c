@@ -85,6 +85,11 @@ struct tsc2007 {
 
 	int			(*get_pendown_state)(void);
 	void			(*clear_penirq)(void);
+
+	struct work_struct	work;
+
+	unsigned int		poll_period;
+	unsigned int		poll_delay;
 };
 
 static inline int tsc2007_xfer(struct tsc2007 *tsc, u8 cmd)
@@ -142,15 +147,16 @@ static void tsc2007_send_event(void *tsc)
 	if (rt > MAX_12BIT) {
 		dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
 
-		hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
+		hrtimer_start(&ts->timer, ktime_set(0, ts->poll_period),
 			      HRTIMER_MODE_REL);
 		return;
 	}
 
 	/* NOTE: We can't rely on the pressure to determine the pen down
-	 * state, even this controller has a pressure sensor.  The pressure
-	 * value can fluctuate for quite a while after lifting the pen and
-	 * in some cases may not even settle at the expected value.
+	 * state, even though this controller has a pressure sensor.
+	 * The pressure value can fluctuate for quite a while after
+	 * lifting the pen and in some cases may not even settle at the
+	 * expected value.
 	 *
 	 * The only safe way to check for the pen up condition is in the
 	 * timer by reading the pen signal state (it's a GPIO _and_ IRQ).
@@ -175,21 +181,37 @@ static void tsc2007_send_event(void *tsc)
 			x, y, rt);
 	}
 
-	hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
+	hrtimer_start(&ts->timer, ktime_set(0, ts->poll_period),
 			HRTIMER_MODE_REL);
 }
 
 static int tsc2007_read_values(struct tsc2007 *tsc)
 {
+	int ret;
+
+	memset(&tsc->tc, sizeof(tsc->tc), 0);
+
 	/* y- still on; turn on only y+ (and ADC) */
-	tsc->tc.y = tsc2007_xfer(tsc, READ_Y);
+	ret = tsc2007_xfer(tsc, READ_Y);
+	if (ret < 0)
+		return ret;
+	tsc->tc.y = ret;
 
 	/* turn y- off, x+ on, then leave in lowpower */
-	tsc->tc.x = tsc2007_xfer(tsc, READ_X);
+	ret = tsc2007_xfer(tsc, READ_X);
+	if (ret < 0)
+		return ret;
+	tsc->tc.x = ret;
 
 	/* turn y+ off, x- on; we'll use formula #1 */
-	tsc->tc.z1 = tsc2007_xfer(tsc, READ_Z1);
-	tsc->tc.z2 = tsc2007_xfer(tsc, READ_Z2);
+	ret = tsc2007_xfer(tsc, READ_Z1);
+	if (ret < 0)
+		return ret;
+	tsc->tc.z1 = ret;
+	ret = tsc2007_xfer(tsc, READ_Z2);
+	if (ret < 0)
+		return ret;
+	tsc->tc.z2 = ret;
 
 	/* power down */
 	tsc2007_xfer(tsc, PWRDOWN);
@@ -197,12 +219,9 @@ static int tsc2007_read_values(struct tsc2007 *tsc)
 	return 0;
 }
 
-static enum hrtimer_restart tsc2007_timer(struct hrtimer *handle)
+static void tsc2007_work(struct work_struct *work)
 {
-	struct tsc2007 *ts = container_of(handle, struct tsc2007, timer);
-	unsigned long flags;
-
-	spin_lock_irqsave(&ts->lock, flags);
+	struct tsc2007 *ts = container_of(work, struct tsc2007, work);
 
 	if (unlikely(!ts->get_pendown_state() && ts->pendown)) {
 		struct input_dev *input = ts->input;
@@ -222,9 +241,12 @@ static enum hrtimer_restart tsc2007_timer(struct hrtimer *handle)
 		tsc2007_read_values(ts);
 		tsc2007_send_event(ts);
 	}
+}
 
-	spin_unlock_irqrestore(&ts->lock, flags);
-
+static enum hrtimer_restart tsc2007_timer(struct hrtimer *handle)
+{
+	struct tsc2007 *ts = container_of(handle, struct tsc2007, timer);
+	schedule_work(&ts->work);
 	return HRTIMER_NORESTART;
 }
 
@@ -237,7 +259,7 @@ static irqreturn_t tsc2007_irq(int irq, void *handle)
 
 	if (likely(ts->get_pendown_state())) {
 		disable_irq_nosync(ts->irq);
-		hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_DELAY),
+		hrtimer_start(&ts->timer, ktime_set(0, ts->poll_delay),
 					HRTIMER_MODE_REL);
 	}
 
@@ -262,13 +284,23 @@ static int tsc2007_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	if (!try_module_get(client->adapter->owner))
+		return -ENXIO;
+
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -EIO;
+					I2C_FUNC_SMBUS_READ_WORD_DATA)) {
+		err = -EIO;
+		goto err_put;
+	}
 
 	ts = kzalloc(sizeof(struct tsc2007), GFP_KERNEL);
+	if (ts == NULL) {
+		err = -ENOMEM;
+		goto err_put;
+	}
+
 	input_dev = input_allocate_device();
-	if (!ts || !input_dev) {
+	if (input_dev == NULL) {
 		err = -ENOMEM;
 		goto err_free_mem;
 	}
@@ -278,15 +310,26 @@ static int tsc2007_probe(struct i2c_client *client,
 
 	ts->input = input_dev;
 
+	INIT_WORK(&ts->work, tsc2007_work);
+
 	hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ts->timer.function = tsc2007_timer;
 
 	spin_lock_init(&ts->lock);
 
-	ts->model             = pdata->model;
+	ts->model	      = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
+	if (pdata->poll_period_ns) {
+		ts->poll_period = pdata->poll_period_ns;
+	} else
+		ts->poll_period = TS_POLL_PERIOD;
+
+	if (pdata->poll_delay_ns) {
+		ts->poll_delay = pdata->poll_delay_ns;
+	} else
+		ts->poll_delay = TS_POLL_DELAY;
 
 	pdata->init_platform_hw();
 
@@ -304,15 +347,18 @@ static int tsc2007_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT, 0, 0);
 
-	tsc2007_read_values(ts);
-
+	err = tsc2007_read_values(ts);
+	if (err < 0) {
+		dev_err(&client->dev, "No TSC2007 chip found: %d\n", err);
+		goto err_free_dev;
+	}
 	ts->irq = client->irq;
 
-	err = request_irq(ts->irq, tsc2007_irq, 0,
+	err = request_irq(ts->irq, tsc2007_irq, IRQF_TRIGGER_LOW,
 			client->dev.driver->name, ts);
 	if (err < 0) {
 		dev_err(&client->dev, "irq %d busy?\n", ts->irq);
-		goto err_free_mem;
+		goto err_free_dev;
 	}
 
 	err = input_register_device(input_dev);
@@ -323,12 +369,16 @@ static int tsc2007_probe(struct i2c_client *client,
 
 	return 0;
 
- err_free_irq:
+err_free_irq:
 	free_irq(ts->irq, ts);
+err_free_dev:
 	hrtimer_cancel(&ts->timer);
- err_free_mem:
+	cancel_work_sync(&ts->work);
 	input_free_device(input_dev);
+err_free_mem:
 	kfree(ts);
+err_put:
+	module_put(client->adapter->owner);
 	return err;
 }
 
@@ -342,9 +392,11 @@ static int tsc2007_remove(struct i2c_client *client)
 
 	free_irq(ts->irq, ts);
 	hrtimer_cancel(&ts->timer);
+	cancel_work_sync(&ts->work);
 	input_unregister_device(ts->input);
 	kfree(ts);
 
+	module_put(client->adapter->owner);
 	return 0;
 }
 

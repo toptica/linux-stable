@@ -836,11 +836,13 @@ void gpio_free(unsigned gpio)
 		return;
 	}
 
-	gpio_unexport(gpio);
+	desc = &gpio_desc[gpio];
+
+	if (test_bit(FLAG_EXPORT, &desc->flags))
+		gpio_unexport(gpio);
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	desc = &gpio_desc[gpio];
 	chip = desc->chip;
 	if (chip && test_bit(FLAG_REQUESTED, &desc->flags)) {
 		if (chip->free) {

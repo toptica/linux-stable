@@ -47,15 +47,18 @@
 #define MX2_TSTAT_CAPT		(1 << 1)
 #define MX2_TSTAT_COMP		(1 << 0)
 
-/* MX31, MX35 */
+/* MX31, MX35, MX25 */
 #define MX3_TCTL_WAITEN		(1 << 3)
 #define MX3_TCTL_CLK_IPG	(1 << 6)
+#define MX3_TCTL_CLK_PER	(2 << 6)
 #define MX3_TCTL_FRR		(1 << 9)
 #define MX3_IR			0x0c
 #define MX3_TSTAT		0x08
 #define MX3_TSTAT_OF1		(1 << 0)
 #define MX3_TCN			0x24
 #define MX3_TCMP		0x10
+
+#define timer_is_v2()	(cpu_is_mx3() || cpu_is_mx25() || cpu_is_mx5())
 
 static struct clock_event_device clockevent_mxc;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;
@@ -66,7 +69,7 @@ static inline void gpt_irq_disable(void)
 {
 	unsigned int tmp;
 
-	if (cpu_is_mx3())
+	if (timer_is_v2())
 		__raw_writel(0, timer_base + MX3_IR);
 	else {
 		tmp = __raw_readl(timer_base + MXC_TCTL);
@@ -76,7 +79,7 @@ static inline void gpt_irq_disable(void)
 
 static inline void gpt_irq_enable(void)
 {
-	if (cpu_is_mx3())
+	if (timer_is_v2())
 		__raw_writel(1<<0, timer_base + MX3_IR);
 	else {
 		__raw_writel(__raw_readl(timer_base + MXC_TCTL) | MX1_2_TCTL_IRQEN,
@@ -90,26 +93,26 @@ static void gpt_irq_acknowledge(void)
 		__raw_writel(0, timer_base + MX1_2_TSTAT);
 	if (cpu_is_mx2())
 		__raw_writel(MX2_TSTAT_CAPT | MX2_TSTAT_COMP, timer_base + MX1_2_TSTAT);
-	if (cpu_is_mx3())
+	if (timer_is_v2())
 		__raw_writel(MX3_TSTAT_OF1, timer_base + MX3_TSTAT);
 }
 
-static cycle_t mx1_2_get_cycles(struct clocksource *cs)
+static cycle_t timer_v1_get_cycles(struct clocksource *cs)
 {
 	return __raw_readl(timer_base + MX1_2_TCN);
 }
 
-static cycle_t mx3_get_cycles(struct clocksource *cs)
+static cycle_t timer_v2_get_cycles(struct clocksource *cs)
 {
 	return __raw_readl(timer_base + MX3_TCN);
 }
 
 static struct clocksource clocksource_mxc = {
-	.name 		= "mxc_timer1",
+	.name		= "mxc_timer1",
 	.rating		= 200,
-	.read		= mx1_2_get_cycles,
+	.read		= timer_v1_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift 		= 20,
+	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -117,8 +120,8 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 {
 	unsigned int c = clk_get_rate(timer_clk);
 
-	if (cpu_is_mx3())
-		clocksource_mxc.read = mx3_get_cycles;
+	if (timer_is_v2())
+		clocksource_mxc.read = timer_v2_get_cycles;
 
 	clocksource_mxc.mult = clocksource_hz2mult(c,
 					clocksource_mxc.shift);
@@ -129,7 +132,7 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 
 /* clock event */
 
-static int mx1_2_set_next_event(unsigned long evt,
+static int timer_v1_set_next_event(unsigned long evt,
 			      struct clock_event_device *unused)
 {
 	unsigned long tcmp;
@@ -142,7 +145,7 @@ static int mx1_2_set_next_event(unsigned long evt,
 				-ETIME : 0;
 }
 
-static int mx3_set_next_event(unsigned long evt,
+static int timer_v2_set_next_event(unsigned long evt,
 			      struct clock_event_device *unused)
 {
 	unsigned long tcmp;
@@ -156,11 +159,21 @@ static int mx3_set_next_event(unsigned long evt,
 }
 
 #ifdef DEBUG
-static const char *clock_event_mode_label[] = {
-	[CLOCK_EVT_MODE_PERIODIC] = "CLOCK_EVT_MODE_PERIODIC",
-	[CLOCK_EVT_MODE_ONESHOT]  = "CLOCK_EVT_MODE_ONESHOT",
-	[CLOCK_EVT_MODE_SHUTDOWN] = "CLOCK_EVT_MODE_SHUTDOWN",
-	[CLOCK_EVT_MODE_UNUSED]   = "CLOCK_EVT_MODE_UNUSED"
+static inline const char *clock_event_mode_label(enum clock_event_mode mode)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		return "CLOCK_EVT_MODE_PERIODIC";
+	case CLOCK_EVT_MODE_ONESHOT:
+		return "CLOCK_EVT_MODE_ONESHOT";
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		return "CLOCK_EVT_MODE_SHUTDOWN";
+	case CLOCK_EVT_MODE_UNUSED:
+		return "CLOCK_EVT_MODE_UNUSED";
+	case CLOCK_EVT_MODE_RESUME:
+		return "CLOCK_EVT_MODE_RESUME";
+	}
+	return "UNKNOWN";
 };
 #endif /* DEBUG */
 
@@ -180,7 +193,7 @@ static void mxc_set_mode(enum clock_event_mode mode,
 
 	if (mode != clockevent_mode) {
 		/* Set event time into far-far future */
-		if (cpu_is_mx3())
+		if (timer_is_v2())
 			__raw_writel(__raw_readl(timer_base + MX3_TCN) - 3,
 					timer_base + MX3_TCMP);
 		else
@@ -192,9 +205,9 @@ static void mxc_set_mode(enum clock_event_mode mode,
 	}
 
 #ifdef DEBUG
-	printk(KERN_INFO "mxc_set_mode: changing mode from %s to %s\n",
-		clock_event_mode_label[clockevent_mode],
-		clock_event_mode_label[mode]);
+	printk(KERN_INFO "mxc_set_mode: changing mode from %s[%d] to %s[%d]\n",
+		clock_event_mode_label(clockevent_mode), clockevent_mode,
+		clock_event_mode_label(mode), mode);
 #endif /* DEBUG */
 
 	/* Remember timer mode */
@@ -203,8 +216,7 @@ static void mxc_set_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		printk(KERN_ERR"mxc_set_mode: Periodic mode is not "
-				"supported for i.MX\n");
+		printk(KERN_ERR"mxc_set_mode: Periodic mode is not supported for i.MX\n");
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 	/*
@@ -233,7 +245,7 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 	struct clock_event_device *evt = &clockevent_mxc;
 	uint32_t tstat;
 
-	if (cpu_is_mx3())
+	if (timer_is_v2())
 		tstat = __raw_readl(timer_base + MX3_TSTAT);
 	else
 		tstat = __raw_readl(timer_base + MX1_2_TSTAT);
@@ -256,16 +268,19 @@ static struct clock_event_device clockevent_mxc = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.set_mode	= mxc_set_mode,
-	.set_next_event	= mx1_2_set_next_event,
+	.set_next_event	= timer_v1_set_next_event,
 	.rating		= 200,
 };
 
 static int __init mxc_clockevent_init(struct clk *timer_clk)
 {
-	unsigned int c = clk_get_rate(timer_clk);
+	unsigned long c = clk_get_rate(timer_clk);
 
-	if (cpu_is_mx3())
-		clockevent_mxc.set_next_event = mx3_set_next_event;
+	printk(KERN_DEBUG "%s: timer clk rate is %lu.%03luMHz\n", __FUNCTION__,
+		c / 1000000, c / 1000 % 1000);
+
+	if (timer_is_v2())
+		clockevent_mxc.set_next_event = timer_v2_set_next_event;
 
 	clockevent_mxc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_mxc.shift);
@@ -281,30 +296,13 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxc_timer_init(struct clk *timer_clk)
+void __init mxc_timer_init(struct clk *timer_clk, void __iomem *base, int irq)
 {
 	uint32_t tctl_val;
-	int irq;
 
 	clk_enable(timer_clk);
 
-	if (cpu_is_mx1()) {
-#ifdef CONFIG_ARCH_MX1
-		timer_base = IO_ADDRESS(TIM1_BASE_ADDR);
-		irq = TIM1_INT;
-#endif
-	} else if (cpu_is_mx2()) {
-#ifdef CONFIG_ARCH_MX2
-		timer_base = IO_ADDRESS(GPT1_BASE_ADDR);
-		irq = MXC_INT_GPT1;
-#endif
-	} else if (cpu_is_mx3()) {
-#ifdef CONFIG_ARCH_MX3
-		timer_base = IO_ADDRESS(GPT1_BASE_ADDR);
-		irq = MXC_INT_GPT;
-#endif
-	} else
-		BUG();
+	timer_base = base;
 
 	/*
 	 * Initialise to a known state (all timers off, and timing reset)
@@ -313,7 +311,7 @@ void __init mxc_timer_init(struct clk *timer_clk)
 	__raw_writel(0, timer_base + MXC_TCTL);
 	__raw_writel(0, timer_base + MXC_TPRER); /* see datasheet note */
 
-	if (cpu_is_mx3())
+	if (timer_is_v2())
 		tctl_val = MX3_TCTL_CLK_IPG | MX3_TCTL_FRR | MX3_TCTL_WAITEN | MXC_TCTL_TEN;
 	else
 		tctl_val = MX1_2_TCTL_FRR | MX1_2_TCTL_CLK_PCLK1 | MXC_TCTL_TEN;

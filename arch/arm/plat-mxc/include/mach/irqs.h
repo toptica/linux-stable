@@ -11,19 +11,23 @@
 #ifndef __ASM_ARCH_MXC_IRQS_H__
 #define __ASM_ARCH_MXC_IRQS_H__
 
-/*
- * So far all i.MX SoCs have 64 internal interrupts
- */
-#define MXC_INTERNAL_IRQS	64
-
 #define MXC_GPIO_IRQ_START	MXC_INTERNAL_IRQS
 
 #if defined CONFIG_ARCH_MX1
+#define MXC_INTERNAL_IRQS	64
 #define MXC_GPIO_IRQS		(32 * 4)
 #elif defined CONFIG_ARCH_MX2
+#define MXC_INTERNAL_IRQS	64
 #define MXC_GPIO_IRQS		(32 * 6)
 #elif defined CONFIG_ARCH_MX3
+#define MXC_INTERNAL_IRQS	64
 #define MXC_GPIO_IRQS		(32 * 3)
+#elif defined CONFIG_ARCH_MX25
+#define MXC_INTERNAL_IRQS	64
+#define MXC_GPIO_IRQS		(32 * 4)
+#elif defined CONFIG_ARCH_MX5
+#define MXC_INTERNAL_IRQS	128
+#define MXC_GPIO_IRQS		(32 * 4)
 #endif
 
 /*

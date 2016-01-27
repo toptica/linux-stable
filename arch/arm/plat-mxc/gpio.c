@@ -22,21 +22,79 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/sysdev.h>
+#include <linux/pm.h>
+#include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm-generic/bug.h>
 
 static struct mxc_gpio_port *mxc_gpio_ports;
 static int gpio_table_size;
 
+#define cpu_is_mx1_mx2()	(cpu_is_mx1() || cpu_is_mx2())
+
+#define GPIO_DR		(cpu_is_mx1_mx2() ? 0x1c : 0x00)
+#define GPIO_GDIR	(cpu_is_mx1_mx2() ? 0x00 : 0x04)
+#define GPIO_PSR	(cpu_is_mx1_mx2() ? 0x24 : 0x08)
+#define GPIO_ICR1	(cpu_is_mx1_mx2() ? 0x28 : 0x0C)
+#define GPIO_ICR2	(cpu_is_mx1_mx2() ? 0x2C : 0x10)
+#define GPIO_IMR	(cpu_is_mx1_mx2() ? 0x30 : 0x14)
+#define GPIO_ISR	(cpu_is_mx1_mx2() ? 0x34 : 0x18)
+#define GPIO_ISR	(cpu_is_mx1_mx2() ? 0x34 : 0x18)
+
+#define GPIO_INT_LOW_LEV	(cpu_is_mx1_mx2() ? 0x3 : 0x0)
+#define GPIO_INT_HIGH_LEV	(cpu_is_mx1_mx2() ? 0x2 : 0x1)
+#define GPIO_INT_RISE_EDGE	(cpu_is_mx1_mx2() ? 0x0 : 0x2)
+#define GPIO_INT_FALL_EDGE	(cpu_is_mx1_mx2() ? 0x1 : 0x3)
+
+#ifdef CONFIG_PM
+static int mx1_mx2_gpio_irqs[] = {
+	8,
+};
+
+static int mx3_gpio_irqs[] = {
+	52,
+	51,
+	56,
+};
+
+static int mx25_gpio_irqs[] = {
+	52,
+	51,
+	16,
+	23,
+};
+
+static int mx5_gpio_irqs[] = {
+	42, /* GPIO0 */
+	43, /* GPIO1 */
+	44, /* GPIO2 */
+	45, /* GPIO3 */
+	46, /* GPIO4 */
+	47, /* GPIO5 */
+	48, /* GPIO6 */
+	49, /* GPIO7 */
+	50, /* GPIO0..15 */
+	51, /* GPIO16..31 */
+	52, /* GPIO32..47 */
+	53, /* GPIO48..63 */
+	54, /* GPIO64..79 */
+	55, /* GPIO80..95 */
+	56, /* GPIO96..111 */
+	57, /* GPIO112..127 */
+};
+#endif
+
 /* Note: This driver assumes 32 GPIOs are handled in one register */
 
-static void _clear_gpio_irqstatus(struct mxc_gpio_port *port, u32 index)
+static inline void _clear_gpio_irqstatus(struct mxc_gpio_port *port, u32 index)
 {
 	__raw_writel(1 << index, port->base + GPIO_ISR);
 }
 
-static void _set_gpio_irqenable(struct mxc_gpio_port *port, u32 index,
+static inline void _set_gpio_irqenable(struct mxc_gpio_port *port, u32 index,
 				int enable)
 {
 	u32 l;
@@ -82,6 +140,7 @@ static int gpio_set_irq_type(u32 irq, u32 type)
 	case IRQ_TYPE_EDGE_FALLING:
 		edge = GPIO_INT_FALL_EDGE;
 		break;
+	case IRQ_TYPE_PROBE:
 	case IRQ_TYPE_EDGE_BOTH:
 		val = mxc_gpio_get(&port->chip, gpio & 31);
 		if (val) {
@@ -162,27 +221,24 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 	}
 }
 
-#if defined(CONFIG_ARCH_MX3) || defined(CONFIG_ARCH_MX1)
 /* MX1 and MX3 has one interrupt *per* gpio port */
 static void mx3_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = get_irq_data(irq);
 
 	irq_stat = __raw_readl(port->base + GPIO_ISR) &
 			__raw_readl(port->base + GPIO_IMR);
 
 	mxc_gpio_irq_handler(port, irq_stat);
 }
-#endif
 
-#ifdef CONFIG_ARCH_MX2
 /* MX2 has one interrupt *for all* gpio ports */
 static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	int i;
 	u32 irq_msk, irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = get_irq_data(irq);
 
 	/* walk through all interrupt status registers */
 	for (i = 0; i < gpio_table_size; i++) {
@@ -195,6 +251,34 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 			mxc_gpio_irq_handler(&port[i], irq_stat);
 	}
 }
+
+#ifdef CONFIG_PM
+/*
+ * Set interrupt number "irq" in the GPIO as a wakeup source.
+ * While system is running all registered GPIO interrupts need to have
+ * wakeup enabled. When system is suspended, only selected GPIO interrupts
+ * need to have wakeup enabled.
+ * @param  irq          interrupt source number
+ * @param  enable       enable as wakeup if equal to non-zero
+ * @return       This function returns 0 on success.
+ */
+static int gpio_set_wake_irq(u32 irq, u32 enable)
+{
+	u32 gpio = irq_to_gpio(irq);
+	u32 gpio_idx = gpio & 0x1f;
+	struct mxc_gpio_port *port = &mxc_gpio_ports[gpio / 32];
+
+	if ((gpio / 32) >= gpio_table_size)
+		return -EINVAL;
+
+	if (enable)
+		port->suspend_wakeup |= (1 << gpio_idx);
+	else
+		port->suspend_wakeup &= ~(1 << gpio_idx);
+	return 0;
+}
+#else
+#define gpio_set_wake_irq NULL
 #endif
 
 static struct irq_chip gpio_irq_chip = {
@@ -202,6 +286,7 @@ static struct irq_chip gpio_irq_chip = {
 	.mask = gpio_mask_irq,
 	.unmask = gpio_unmask_irq,
 	.set_type = gpio_set_irq_type,
+	.set_wake = gpio_set_wake_irq,
 };
 
 static void _set_gpio_direction(struct gpio_chip *chip, unsigned offset,
@@ -260,7 +345,8 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 	mxc_gpio_ports = port;
 	gpio_table_size = cnt;
 
-	printk(KERN_INFO "MXC GPIO hardware\n");
+	printk(KERN_INFO "MXC GPIO hardware %u GPIOs on %u ports\n",
+		cnt * 32, cnt);
 
 	for (i = 0; i < cnt; i++) {
 		/* disable the interrupt and clear the status */
@@ -282,19 +368,207 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 		port[i].chip.ngpio = 32;
 
 		/* its a serious configuration bug when it fails */
-		BUG_ON( gpiochip_add(&port[i].chip) < 0 );
+		BUG_ON(gpiochip_add(&port[i].chip) < 0);
 
-#if defined(CONFIG_ARCH_MX3) || defined(CONFIG_ARCH_MX1)
-		/* setup one handler for each entry */
-		set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
-		set_irq_data(port[i].irq, &port[i]);
-#endif
+		if (cpu_is_mx1() || cpu_is_mx3() || cpu_is_mx25() ||
+			cpu_is_mx5()) {
+			/* setup one handler for each entry */
+			set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
+			set_irq_data(port[i].irq, &port[i]);
+		}
+		if (cpu_is_mx5()) {
+			/* i.MX51 has two IRQs per GPIO port */
+			set_irq_chained_handler(port[i].irq + 1,
+						mx3_gpio_irq_handler);
+			set_irq_data(port[i].irq + 1, &port[i]);
+		}
 	}
 
-#ifdef CONFIG_ARCH_MX2
-	/* setup one handler for all GPIO interrupts */
-	set_irq_chained_handler(port[0].irq, mx2_gpio_irq_handler);
-	set_irq_data(port[0].irq, port);
-#endif
+	if (cpu_is_mx2()) {
+		/* setup one handler for all GPIO interrupts */
+		set_irq_chained_handler(port[0].irq, mx2_gpio_irq_handler);
+		set_irq_data(port[0].irq, port);
+	}
+
 	return 0;
+}
+
+#ifdef CONFIG_PM
+/*
+ * This function puts the GPIO in low-power mode/state.
+ * All the interrupts that are enabled are first saved.
+ * Only those interrupts which registers as a wake source by calling
+ * enable_irq_wake are enabled. All other interrupts are disabled.
+ *
+ * @param   dev  the system device structure used to give information
+ *                on GPIO to suspend
+ * @param   mesg the power state the device is entering
+ *
+ * @return  The function always returns 0.
+ */
+static int mxc_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
+{
+	int ret = 0;
+	int i;
+	int wakeup = 0;
+
+	for (i = 0; i < gpio_table_size; i++) {
+		struct mxc_gpio_port *port = &mxc_gpio_ports[i];
+
+		if (__raw_readl(port->base + GPIO_ISR) & port->suspend_wakeup)
+			return -EBUSY;
+
+		port->saved_wakeup = __raw_readl(port->base + GPIO_IMR);
+		__raw_writel(port->suspend_wakeup, port->base + GPIO_IMR);
+
+		if (port->suspend_wakeup) {
+			wakeup = 1;
+		}
+		if (ret != 0) {
+			while (--i >= 0) {
+				port = &mxc_gpio_ports[i];
+				__raw_writel(port->saved_wakeup,
+					     port->base + GPIO_IMR);
+			}
+			return ret;
+		}
+	}
+	if (wakeup) {
+		int nr_irqs;
+		int *gpio_irqs;
+
+		if (cpu_is_mx1_mx2()) {
+			gpio_irqs = mx1_mx2_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx1_mx2_gpio_irqs);
+		} else if (cpu_is_mx25()) {
+			gpio_irqs = mx25_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx25_gpio_irqs);
+		} else if (cpu_is_mx3()) {
+			gpio_irqs = mx3_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx3_gpio_irqs);
+		} else if (cpu_is_mx5()) {
+			gpio_irqs = mx5_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx5_gpio_irqs);
+		} else {
+			return -EINVAL;
+		}
+		for (i = 0; i < nr_irqs; i++) {
+			ret = enable_irq_wake(gpio_irqs[i]);
+		}
+	}
+	return ret;
+}
+
+/*
+ * This function brings the GPIO back from low-power state.
+ * All the interrupts enabled before suspension are re-enabled from
+ * the saved information.
+ *
+ * @param   dev  the system device structure used to give information
+ *                on GPIO to resume
+ *
+ * @return  The function always returns 0.
+ */
+static int mxc_gpio_resume(struct sys_device *dev)
+{
+	int i;
+	int wakeup = 0;
+
+	for (i = 0; i < gpio_table_size; i++) {
+		struct mxc_gpio_port *port = &mxc_gpio_ports[i];
+
+		__raw_writel(port->saved_wakeup, port->base + GPIO_IMR);
+		if (port->suspend_wakeup) {
+			wakeup = 1;
+		}
+	}
+	if (wakeup) {
+		int nr_irqs;
+		int *gpio_irqs;
+
+		if (cpu_is_mx1_mx2()) {
+			gpio_irqs = mx1_mx2_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx1_mx2_gpio_irqs);
+		} else if (cpu_is_mx25()) {
+			gpio_irqs = mx25_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx25_gpio_irqs);
+		} else if (cpu_is_mx3()) {
+			gpio_irqs = mx3_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx3_gpio_irqs);
+		} else if (cpu_is_mx5()) {
+			gpio_irqs = mx5_gpio_irqs;
+			nr_irqs = ARRAY_SIZE(mx5_gpio_irqs);
+		} else {
+			return -EINVAL;
+		}
+		for (i = 0; i < nr_irqs; i++) {
+			disable_irq_wake(gpio_irqs[i]);
+		}
+	}
+	return 0;
+}
+#else
+#define mxc_gpio_suspend  NULL
+#define mxc_gpio_resume   NULL
+#endif				/* CONFIG_PM */
+
+/*
+ * This structure contains pointers to the power management callback functions.
+ */
+static struct sysdev_class mxc_gpio_sysclass = {
+	.name = "mxc_gpio",
+	.suspend = mxc_gpio_suspend,
+	.resume = mxc_gpio_resume,
+};
+
+/*
+ * This structure represents GPIO as a system device.
+ * System devices follow a slightly different driver model.
+ * They don't need to do dynammic driver binding, can't be probed,
+ * and don't reside on any type of peripheral bus.
+ * So, it is represented and treated a little differently.
+ */
+static struct sys_device mxc_gpio_device = {
+	.cls = &mxc_gpio_sysclass,
+};
+
+/*
+ * This function registers GPIO hardware as a system device and
+ * intializes all the GPIO ports if not already done.
+ * System devices will only be suspended with interrupts disabled, and
+ * after all other devices have been suspended. On resume, they will be
+ * resumed before any other devices, and also with interrupts disabled.
+ * This may get called early from board specific init
+ *
+ * @return       This function returns 0 on success.
+ */
+int __init mxc_gpio_sysinit(void)
+{
+	int ret = 0;
+
+	ret = sysdev_class_register(&mxc_gpio_sysclass);
+	if (ret)
+		return ret;
+	ret = sysdev_register(&mxc_gpio_device);
+	if (ret != 0)
+		sysdev_class_unregister(&mxc_gpio_sysclass);
+
+	return ret;
+}
+
+extern int mx2_register_gpios(void);
+extern int mx3_register_gpios(void);
+extern int mx51_register_gpios(void);
+int __init mxc_register_gpios(void)
+{
+	if (cpu_is_mx2())
+		return mx2_register_gpios();
+	else if (cpu_is_mx25())
+		return mx25_register_gpios();
+	else if (cpu_is_mx3())
+		return mx3_register_gpios();
+	else if (cpu_is_mx51())
+		return mx51_register_gpios();
+	else
+		BUG();
 }

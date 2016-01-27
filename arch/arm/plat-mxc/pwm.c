@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  *
  * Derived from pxa PWM driver by eric miao <eric.miao@marvell.com>
+ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 #include <linux/module.h>
@@ -27,14 +28,19 @@
 
 /* i.MX27, i.MX31, i.MX35 share the same PWM function block: */
 
-#define MX3_PWMCR                 0x00    /* PWM Control Register */
-#define MX3_PWMSAR                0x0C    /* PWM Sample Register */
-#define MX3_PWMPR                 0x10    /* PWM Period Register */
-#define MX3_PWMCR_PRESCALER(x)    (((x - 1) & 0xFFF) << 4)
+#define MX3_PWMCR		  0x00	  /* PWM Control Register */
+#define MX3_PWMSAR		  0x0C	  /* PWM Sample Register */
+#define MX3_PWMPR		  0x10	  /* PWM Period Register */
+#define MX3_PWMCR_PRESCALER(x)	  (((x - 1) & 0xFFF) << 4)
 #define MX3_PWMCR_CLKSRC_IPG_HIGH (2 << 16)
-#define MX3_PWMCR_EN              (1 << 0)
+#define MX3_PWMCR_EN		  (1 << 0)
 
-
+#define MX3_PWMCR_STOPEN		(1 << 25)
+#define MX3_PWMCR_DOZEEN		(1 << 24)
+#define MX3_PWMCR_WAITEN		(1 << 23)
+#define MX3_PWMCR_DBGEN			(1 << 22)
+#define MX3_PWMCR_CLKSRC_IPG		(1 << 16)
+#define MX3_PWMCR_CLKSRC_IPG_32k	(3 << 16)
 
 struct pwm_device {
 	struct list_head	node;
@@ -55,9 +61,11 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 	if (pwm == NULL || period_ns == 0 || duty_ns > period_ns)
 		return -EINVAL;
 
-	if (cpu_is_mx27() || cpu_is_mx3()) {
+	if (cpu_is_mx27() || cpu_is_mx3() || cpu_is_mx25() || cpu_is_mx51()) {
 		unsigned long long c;
 		unsigned long period_cycles, duty_cycles, prescale;
+		u32 cr;
+
 		c = clk_get_rate(pwm->clk);
 		c = c * period_ns;
 		do_div(c, 1000000000);
@@ -66,15 +74,23 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 		prescale = period_cycles / 0x10000 + 1;
 
 		period_cycles /= prescale;
-		c = (unsigned long long)period_cycles * duty_ns;
+		c = (unsigned long long)(period_cycles + 2) * duty_ns;
 		do_div(c, period_ns);
 		duty_cycles = c;
 
 		writel(duty_cycles, pwm->mmio_base + MX3_PWMSAR);
 		writel(period_cycles, pwm->mmio_base + MX3_PWMPR);
-		writel(MX3_PWMCR_PRESCALER(prescale - 1) |
-			MX3_PWMCR_CLKSRC_IPG_HIGH | MX3_PWMCR_EN,
-			pwm->mmio_base + MX3_PWMCR);
+
+		cr = MX3_PWMCR_PRESCALER(prescale) |
+			MX3_PWMCR_STOPEN | MX3_PWMCR_DOZEEN |
+			MX3_PWMCR_WAITEN | MX3_PWMCR_DBGEN;
+		if (cpu_is_mx25() || cpu_is_mx51())
+			cr |= MX3_PWMCR_CLKSRC_IPG;
+		else
+			cr |= MX3_PWMCR_CLKSRC_IPG_HIGH;
+
+		cr |= pwm->clk_enabled ? MX3_PWMCR_EN : 0;
+		writel(cr, pwm->mmio_base + MX3_PWMCR);
 	} else if (cpu_is_mx1() || cpu_is_mx21()) {
 		/* The PWM subsystem allows for exact frequencies. However,
 		 * I cannot connect a scope on my device to the PWM line and
@@ -105,6 +121,7 @@ EXPORT_SYMBOL(pwm_config);
 
 int pwm_enable(struct pwm_device *pwm)
 {
+	unsigned long reg;
 	int rc = 0;
 
 	if (!pwm->clk_enabled) {
@@ -112,12 +129,22 @@ int pwm_enable(struct pwm_device *pwm)
 		if (!rc)
 			pwm->clk_enabled = 1;
 	}
+
+	reg = readl(pwm->mmio_base + MX3_PWMCR);
+	reg |= MX3_PWMCR_EN;
+	writel(reg, pwm->mmio_base + MX3_PWMCR);
 	return rc;
 }
 EXPORT_SYMBOL(pwm_enable);
 
 void pwm_disable(struct pwm_device *pwm)
 {
+	unsigned long reg;
+
+	reg = readl(pwm->mmio_base + MX3_PWMCR);
+	reg &= ~MX3_PWMCR_EN;
+	writel(reg, pwm->mmio_base + MX3_PWMCR);
+
 	if (pwm->clk_enabled) {
 		clk_disable(pwm->clk);
 		pwm->clk_enabled = 0;
@@ -189,9 +216,6 @@ static int __devinit mxc_pwm_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	pwm->clk_enabled = 0;
-
-	pwm->use_count = 0;
 	pwm->pwm_id = pdev->id;
 	pwm->pdev = pdev;
 
@@ -202,14 +226,14 @@ static int __devinit mxc_pwm_probe(struct platform_device *pdev)
 		goto err_free_clk;
 	}
 
-	r = request_mem_region(r->start, r->end - r->start + 1, pdev->name);
+	r = request_mem_region(r->start, resource_size(r), pdev->name);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "failed to request memory resource\n");
 		ret = -EBUSY;
 		goto err_free_clk;
 	}
 
-	pwm->mmio_base = ioremap(r->start, r->end - r->start + 1);
+	pwm->mmio_base = ioremap(r->start, resource_size(r));
 	if (pwm->mmio_base == NULL) {
 		dev_err(&pdev->dev, "failed to ioremap() registers\n");
 		ret = -ENODEV;
@@ -224,7 +248,7 @@ static int __devinit mxc_pwm_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_mem:
-	release_mem_region(r->start, r->end - r->start + 1);
+	release_mem_region(r->start, resource_size(r));
 err_free_clk:
 	clk_put(pwm->clk);
 err_free:
@@ -248,7 +272,7 @@ static int __devexit mxc_pwm_remove(struct platform_device *pdev)
 	iounmap(pwm->mmio_base);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, r->end - r->start + 1);
+	release_mem_region(r->start, resource_size(r));
 
 	clk_put(pwm->clk);
 

@@ -21,8 +21,21 @@
 #ifndef __ASM_ARCH_MXC_SYSTEM_H__
 #define __ASM_ARCH_MXC_SYSTEM_H__
 
+#include <asm/proc-fns.h>
+#include <mach/hardware.h>
+
+void mx51_arch_idle(void);
+void mx51_arch_reset(char mode, const char *cmd);
+
 static inline void arch_idle(void)
 {
+#ifdef CONFIG_ARCH_MX51
+	if (cpu_is_mx51()) {
+		mx51_arch_idle();
+
+		return;
+	}
+#endif
 	cpu_do_idle();
 }
 

@@ -84,4 +84,21 @@ config CAN_DEBUG_DEVICES
 	  a problem with CAN support and want to see more of what is going
 	  on.
 
+config CAN_FLEXCAN
+        tristate "Freescale FlexCAN"
+        depends on CAN && (ARCH_MX25 || ARCH_MX35)
+        default m
+        ---help---
+          This select the support of Freescale CAN(FlexCAN).
+          This driver can also be built as a module.
+          If unsure, say N.
+
+config CAN_FLEXCAN_CAN1
+	bool "Enable CAN1 interface on i.MX25/i.MX35"
+	depends on CAN_FLEXCAN && (ARCH_MX25 && !ARCH_MXC_EHCI_USBOTG)
+
+config CAN_FLEXCAN_CAN2
+	bool "Enable CAN2 interface on i.MX25/i.MX35"
+	depends on CAN_FLEXCAN
+
 endmenu

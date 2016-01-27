@@ -59,9 +59,9 @@
 #define MMC_REG_RES_FIFO		0x34
 #define MMC_REG_BUFFER_ACCESS		0x38
 
-#define STR_STP_CLK_RESET               (1 << 3)
-#define STR_STP_CLK_START_CLK           (1 << 1)
-#define STR_STP_CLK_STOP_CLK            (1 << 0)
+#define STR_STP_CLK_RESET		(1 << 3)
+#define STR_STP_CLK_START_CLK		(1 << 1)
+#define STR_STP_CLK_STOP_CLK		(1 << 0)
 
 #define STATUS_CARD_INSERTION		(1 << 31)
 #define STATUS_CARD_REMOVAL		(1 << 30)
@@ -276,7 +276,6 @@ static void mxcmci_finish_request(struct mxcmci_host *host,
 static int mxcmci_finish_data(struct mxcmci_host *host, unsigned int stat)
 {
 	struct mmc_data *data = host->data;
-	int data_error;
 
 #ifdef HAS_DMA
 	if (mxcmci_use_dma(host)) {
@@ -306,11 +305,9 @@ static int mxcmci_finish_data(struct mxcmci_host *host, unsigned int stat)
 		data->bytes_xfered = host->datasize;
 	}
 
-	data_error = data->error;
-
 	host->data = NULL;
 
-	return data_error;
+	return data->error;
 }
 
 static void mxcmci_read_response(struct mxcmci_host *host, unsigned int stat)
@@ -480,12 +477,11 @@ static void mxcmci_datawork(struct work_struct *work)
 static void mxcmci_data_done(struct mxcmci_host *host, unsigned int stat)
 {
 	struct mmc_data *data = host->data;
-	int data_error;
 
 	if (!data)
 		return;
 
-	data_error = mxcmci_finish_data(host, stat);
+	mxcmci_finish_data(host, stat);
 
 	mxcmci_read_response(host, stat);
 	host->cmd = NULL;
@@ -559,7 +555,6 @@ static void mxcmci_request(struct mmc_host *mmc, struct mmc_request *req)
 			req->cmd->error = error;
 			goto out;
 		}
-
 
 		cmdat |= CMD_DAT_CONT_DATA_ENABLE;
 
@@ -807,13 +802,14 @@ out_clk_put:
 out_iounmap:
 	iounmap(host->base);
 out_free:
+	r = host->res;
 	mmc_free_host(mmc);
 out_release_mem:
-	release_mem_region(host->res->start, resource_size(host->res));
+	release_mem_region(r->start, resource_size(r));
 	return ret;
 }
 
-static int mxcmci_remove(struct platform_device *pdev)
+static int __exit mxcmci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct mxcmci_host *host = mmc_priv(mmc);
@@ -833,7 +829,6 @@ static int mxcmci_remove(struct platform_device *pdev)
 	clk_disable(host->clk);
 	clk_put(host->clk);
 
-	release_mem_region(host->res->start, resource_size(host->res));
 	release_resource(host->res);
 
 	mmc_free_host(mmc);
@@ -842,43 +837,34 @@ static int mxcmci_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int mxcmci_suspend(struct platform_device *dev, pm_message_t state)
+static int mxcmci_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
-
-	return ret;
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	return mmc_suspend_host(mmc, PMSG_SUSPEND);
 }
 
-static int mxcmci_resume(struct platform_device *dev)
+static int mxcmci_resume(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	struct mxcmci_host *host;
-	int ret = 0;
-
-	if (mmc) {
-		host = mmc_priv(mmc);
-		ret = mmc_resume_host(mmc);
-	}
-
-	return ret;
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	return mmc_resume_host(mmc);
 }
 #else
 #define mxcmci_suspend  NULL
 #define mxcmci_resume   NULL
 #endif /* CONFIG_PM */
 
-static struct platform_driver mxcmci_driver = {
-	.probe		= mxcmci_probe,
-	.remove		= mxcmci_remove,
+static struct dev_pm_ops mxmci_pm_ops = {
 	.suspend	= mxcmci_suspend,
 	.resume		= mxcmci_resume,
+};
+
+static struct platform_driver mxcmci_driver = {
+	.probe		= mxcmci_probe,
+	.remove		= __exit_p(mxcmci_remove),
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
+		.pm		= &mxmci_pm_ops,
 	}
 };
 
@@ -886,16 +872,15 @@ static int __init mxcmci_init(void)
 {
 	return platform_driver_register(&mxcmci_driver);
 }
+module_init(mxcmci_init);
 
 static void __exit mxcmci_exit(void)
 {
 	platform_driver_unregister(&mxcmci_driver);
 }
-
-module_init(mxcmci_init);
 module_exit(mxcmci_exit);
 
 MODULE_DESCRIPTION("i.MX Multimedia Card Interface Driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-mmc");
+MODULE_ALIAS("platform:" DRIVER_NAME);

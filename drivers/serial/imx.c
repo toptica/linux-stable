@@ -67,11 +67,8 @@
 #define UBIR  0xa4 /* BRM Incremental Register */
 #define UBMR  0xa8 /* BRM Modulator Register */
 #define UBRC  0xac /* Baud Rate Count Register */
-#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
+#define UTS (cpu_is_mx1() ? 0xd0 : 0xb4) /* UART Test Register */
 #define ONEMS 0xb0 /* One Millisecond register */
-#define UTS   0xb4 /* UART Test Register */
-#endif
-#ifdef CONFIG_ARCH_MX1
 #define BIPR1 0xb0 /* Incremental Preset Register 1 */
 #define BIPR2 0xb4 /* Incremental Preset Register 2 */
 #define BIPR3 0xb8 /* Incremental Preset Register 3 */
@@ -80,17 +77,15 @@
 #define BMPR2 0xc4 /* BRM Modulator Register 2 */
 #define BMPR3 0xc8 /* BRM Modulator Register 3 */
 #define BMPR4 0xcc /* BRM Modulator Register 4 */
-#define UTS   0xd0 /* UART Test Register */
-#endif
 
 /* UART Control Register Bit Fields.*/
 #define  URXD_CHARRDY    (1<<15)
-#define  URXD_ERR        (1<<14)
-#define  URXD_OVRRUN     (1<<13)
-#define  URXD_FRMERR     (1<<12)
-#define  URXD_BRK        (1<<11)
-#define  URXD_PRERR      (1<<10)
-#define  UCR1_ADEN       (1<<15) /* Auto dectect interrupt */
+#define	 URXD_ERR	 (1<<14)
+#define	 URXD_OVRRUN	 (1<<13)
+#define	 URXD_FRMERR	 (1<<12)
+#define	 URXD_BRK	 (1<<11)
+#define	 URXD_PRERR	 (1<<10)
+#define	 UCR1_ADEN	 (1<<15) /* Auto dectect interrupt */
 #define  UCR1_ADBR       (1<<14) /* Auto detect baud rate */
 #define  UCR1_TRDYEN     (1<<13) /* Transmitter ready interrupt enable */
 #define  UCR1_IDEN       (1<<12) /* Idle condition interrupt */
@@ -101,97 +96,88 @@
 #define  UCR1_RTSDEN     (1<<5)	 /* RTS delta interrupt enable */
 #define  UCR1_SNDBRK     (1<<4)	 /* Send break */
 #define  UCR1_TDMAEN     (1<<3)	 /* Transmitter ready DMA enable */
-#ifdef CONFIG_ARCH_MX1
-#define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
-#endif
-#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
-#define  UCR1_UARTCLKEN  (0)	 /* not present on mx2/mx3 */
-#endif
-#define  UCR1_DOZE       (1<<1)	 /* Doze */
-#define  UCR1_UARTEN     (1<<0)	 /* UART enabled */
-#define  UCR2_ESCI     	 (1<<15) /* Escape seq interrupt enable */
-#define  UCR2_IRTS  	 (1<<14) /* Ignore RTS pin */
-#define  UCR2_CTSC  	 (1<<13) /* CTS pin control */
-#define  UCR2_CTS        (1<<12) /* Clear to send */
-#define  UCR2_ESCEN      (1<<11) /* Escape enable */
-#define  UCR2_PREN       (1<<8)  /* Parity enable */
-#define  UCR2_PROE       (1<<7)  /* Parity odd/even */
-#define  UCR2_STPB       (1<<6)	 /* Stop */
-#define  UCR2_WS         (1<<5)	 /* Word size */
-#define  UCR2_RTSEN      (1<<4)	 /* Request to send interrupt enable */
-#define  UCR2_TXEN       (1<<2)	 /* Transmitter enabled */
-#define  UCR2_RXEN       (1<<1)	 /* Receiver enabled */
-#define  UCR2_SRST 	 (1<<0)	 /* SW reset */
-#define  UCR3_DTREN 	 (1<<13) /* DTR interrupt enable */
-#define  UCR3_PARERREN   (1<<12) /* Parity enable */
-#define  UCR3_FRAERREN   (1<<11) /* Frame error interrupt enable */
-#define  UCR3_DSR        (1<<10) /* Data set ready */
-#define  UCR3_DCD        (1<<9)  /* Data carrier detect */
-#define  UCR3_RI         (1<<8)  /* Ring indicator */
-#define  UCR3_TIMEOUTEN  (1<<7)  /* Timeout interrupt enable */
-#define  UCR3_RXDSEN	 (1<<6)  /* Receive status interrupt enable */
-#define  UCR3_AIRINTEN   (1<<5)  /* Async IR wake interrupt enable */
-#define  UCR3_AWAKEN	 (1<<4)  /* Async wake interrupt enable */
-#ifdef CONFIG_ARCH_MX1
-#define  UCR3_REF25 	 (1<<3)  /* Ref freq 25 MHz, only on mx1 */
-#define  UCR3_REF30 	 (1<<2)  /* Ref Freq 30 MHz, only on mx1 */
-#endif
-#if defined CONFIG_ARCH_MX2 || defined CONFIG_ARCH_MX3
-#define  UCR3_RXDMUXSEL	 (1<<2)  /* RXD Muxed Input Select, on mx2/mx3 */
-#endif
-#define  UCR3_INVT  	 (1<<1)  /* Inverted Infrared transmission */
-#define  UCR3_BPEN  	 (1<<0)  /* Preset registers enable */
-#define  UCR4_CTSTL_32   (32<<10) /* CTS trigger level (32 chars) */
-#define  UCR4_INVR  	 (1<<9)  /* Inverted infrared reception */
-#define  UCR4_ENIRI 	 (1<<8)  /* Serial infrared interrupt enable */
-#define  UCR4_WKEN  	 (1<<7)  /* Wake interrupt enable */
-#define  UCR4_REF16 	 (1<<6)  /* Ref freq 16 MHz */
-#define  UCR4_IRSC  	 (1<<5)  /* IR special case */
-#define  UCR4_TCEN  	 (1<<3)  /* Transmit complete interrupt enable */
-#define  UCR4_BKEN  	 (1<<2)  /* Break condition interrupt enable */
-#define  UCR4_OREN  	 (1<<1)  /* Receiver overrun interrupt enable */
-#define  UCR4_DREN  	 (1<<0)  /* Recv data ready interrupt enable */
-#define  UFCR_RXTL_SHF   0       /* Receiver trigger level shift */
-#define  UFCR_RFDIV      (7<<7)  /* Reference freq divider mask */
-#define  UFCR_RFDIV_REG(x)	(((x) < 7 ? 6 - (x) : 6) << 7)
-#define  UFCR_TXTL_SHF   10      /* Transmitter trigger level shift */
-#define  USR1_PARITYERR  (1<<15) /* Parity error interrupt flag */
-#define  USR1_RTSS  	 (1<<14) /* RTS pin status */
-#define  USR1_TRDY  	 (1<<13) /* Transmitter ready interrupt/dma flag */
-#define  USR1_RTSD  	 (1<<12) /* RTS delta */
-#define  USR1_ESCF  	 (1<<11) /* Escape seq interrupt flag */
-#define  USR1_FRAMERR    (1<<10) /* Frame error interrupt flag */
-#define  USR1_RRDY       (1<<9)	 /* Receiver ready interrupt/dma flag */
-#define  USR1_TIMEOUT    (1<<7)	 /* Receive timeout interrupt status */
-#define  USR1_RXDS  	 (1<<6)	 /* Receiver idle interrupt flag */
-#define  USR1_AIRINT	 (1<<5)	 /* Async IR wake interrupt flag */
-#define  USR1_AWAKE 	 (1<<4)	 /* Aysnc wake interrupt flag */
-#define  USR2_ADET  	 (1<<15) /* Auto baud rate detect complete */
-#define  USR2_TXFE  	 (1<<14) /* Transmit buffer FIFO empty */
-#define  USR2_DTRF  	 (1<<13) /* DTR edge interrupt flag */
-#define  USR2_IDLE  	 (1<<12) /* Idle condition */
-#define  USR2_IRINT 	 (1<<8)	 /* Serial infrared interrupt flag */
-#define  USR2_WAKE  	 (1<<7)	 /* Wake */
-#define  USR2_RTSF  	 (1<<4)	 /* RTS edge interrupt flag */
-#define  USR2_TXDC  	 (1<<3)	 /* Transmitter complete */
-#define  USR2_BRCD  	 (1<<2)	 /* Break condition */
-#define  USR2_ORE        (1<<1)	 /* Overrun error */
-#define  USR2_RDR        (1<<0)	 /* Recv data ready */
-#define  UTS_FRCPERR	 (1<<13) /* Force parity error */
-#define  UTS_LOOP        (1<<12) /* Loop tx and rx */
-#define  UTS_TXEMPTY	 (1<<6)	 /* TxFIFO empty */
-#define  UTS_RXEMPTY	 (1<<5)	 /* RxFIFO empty */
-#define  UTS_TXFULL 	 (1<<4)	 /* TxFIFO full */
-#define  UTS_RXFULL 	 (1<<3)	 /* RxFIFO full */
-#define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
+
+#define  MX1_UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled (i.MX1 only) */
+
+#define	 UCR1_DOZE	 (1<<1)	 /* Doze */
+#define	 UCR1_UARTEN	 (1<<0)	 /* UART enabled */
+#define	 UCR2_ESCI	 (1<<15) /* Escape seq interrupt enable */
+#define	 UCR2_IRTS	 (1<<14) /* Ignore RTS pin */
+#define	 UCR2_CTSC	 (1<<13) /* CTS pin control */
+#define	 UCR2_CTS	 (1<<12) /* Clear to send */
+#define	 UCR2_ESCEN	 (1<<11) /* Escape enable */
+#define	 UCR2_PREN	 (1<<8)	 /* Parity enable */
+#define	 UCR2_PROE	 (1<<7)	 /* Parity odd/even */
+#define	 UCR2_STPB	 (1<<6)	 /* Stop */
+#define	 UCR2_WS	 (1<<5)	 /* Word size */
+#define	 UCR2_RTSEN	 (1<<4)	 /* Request to send interrupt enable */
+#define	 UCR2_TXEN	 (1<<2)	 /* Transmitter enabled */
+#define	 UCR2_RXEN	 (1<<1)	 /* Receiver enabled */
+#define	 UCR2_SRST	 (1<<0)	 /* SW reset */
+#define	 UCR3_DTREN	 (1<<13) /* DTR interrupt enable */
+#define	 UCR3_PARERREN	 (1<<12) /* Parity enable */
+#define	 UCR3_FRAERREN	 (1<<11) /* Frame error interrupt enable */
+#define	 UCR3_DSR	 (1<<10) /* Data set ready */
+#define	 UCR3_DCD	 (1<<9)	 /* Data carrier detect */
+#define	 UCR3_RI	 (1<<8)	 /* Ring indicator */
+#define	 UCR3_TIMEOUTEN	 (1<<7)	 /* Timeout interrupt enable */
+#define	 UCR3_RXDSEN	 (1<<6)	 /* Receive status interrupt enable */
+#define	 UCR3_AIRINTEN	 (1<<5)	 /* Async IR wake interrupt enable */
+#define	 UCR3_AWAKEN	 (1<<4)	 /* Async wake interrupt enable */
+#define	 UCR3_REF25	 (1<<3)	 /* Ref freq 25 MHz, only on mx1 */
+#define	 UCR3_REF30	 (1<<2)	 /* Ref Freq 30 MHz, only on mx1 */
+#define	 UCR3_RXDMUXSEL	 (1<<2)	 /* RXD Muxed Input Select, on mx2/mx3 */
+#define	 UCR3_INVT	 (1<<1)	 /* Inverted Infrared transmission */
+#define	 UCR3_BPEN	 (1<<0)	 /* Preset registers enable */
+#define	 UCR4_CTSTL_32	 (32<<10) /* CTS trigger level (32 chars) */
+#define	 UCR4_INVR	 (1<<9)	 /* Inverted infrared reception */
+#define	 UCR4_ENIRI	 (1<<8)	 /* Serial infrared interrupt enable */
+#define	 UCR4_WKEN	 (1<<7)	 /* Wake interrupt enable */
+#define	 UCR4_REF16	 (1<<6)	 /* Ref freq 16 MHz */
+#define	 UCR4_IRSC	 (1<<5)	 /* IR special case */
+#define	 UCR4_TCEN	 (1<<3)	 /* Transmit complete interrupt enable */
+#define	 UCR4_BKEN	 (1<<2)	 /* Break condition interrupt enable */
+#define	 UCR4_OREN	 (1<<1)	 /* Receiver overrun interrupt enable */
+#define	 UCR4_DREN	 (1<<0)	 /* Recv data ready interrupt enable */
+#define	 UFCR_RXTL_SHF	 0	 /* Receiver trigger level shift */
+#define	 UFCR_RFDIV	 (7<<7)	 /* Reference freq divider mask */
+#define	 UFCR_RFDIV_REG(x)	(((x) < 7 ? 6 - (x) : 6) << 7)
+#define	 UFCR_TXTL_SHF	 10	 /* Transmitter trigger level shift */
+#define	 USR1_PARITYERR	 (1<<15) /* Parity error interrupt flag */
+#define	 USR1_RTSS	 (1<<14) /* RTS pin status */
+#define	 USR1_TRDY	 (1<<13) /* Transmitter ready interrupt/dma flag */
+#define	 USR1_RTSD	 (1<<12) /* RTS delta */
+#define	 USR1_ESCF	 (1<<11) /* Escape seq interrupt flag */
+#define	 USR1_FRAMERR	 (1<<10) /* Frame error interrupt flag */
+#define	 USR1_RRDY	 (1<<9)	 /* Receiver ready interrupt/dma flag */
+#define	 USR1_TIMEOUT	 (1<<7)	 /* Receive timeout interrupt status */
+#define	 USR1_RXDS	 (1<<6)	 /* Receiver idle interrupt flag */
+#define	 USR1_AIRINT	 (1<<5)	 /* Async IR wake interrupt flag */
+#define	 USR1_AWAKE	 (1<<4)	 /* Aysnc wake interrupt flag */
+#define	 USR2_ADET	 (1<<15) /* Auto baud rate detect complete */
+#define	 USR2_TXFE	 (1<<14) /* Transmit buffer FIFO empty */
+#define	 USR2_DTRF	 (1<<13) /* DTR edge interrupt flag */
+#define	 USR2_IDLE	 (1<<12) /* Idle condition */
+#define	 USR2_IRINT	 (1<<8)	 /* Serial infrared interrupt flag */
+#define	 USR2_WAKE	 (1<<7)	 /* Wake */
+#define	 USR2_RTSF	 (1<<4)	 /* RTS edge interrupt flag */
+#define	 USR2_TXDC	 (1<<3)	 /* Transmitter complete */
+#define	 USR2_BRCD	 (1<<2)	 /* Break condition */
+#define	 USR2_ORE	 (1<<1)	 /* Overrun error */
+#define	 USR2_RDR	 (1<<0)	 /* Recv data ready */
+#define	 UTS_FRCPERR	 (1<<13) /* Force parity error */
+#define	 UTS_LOOP	 (1<<12) /* Loop tx and rx */
+#define	 UTS_TXEMPTY	 (1<<6)	 /* TxFIFO empty */
+#define	 UTS_RXEMPTY	 (1<<5)	 /* RxFIFO empty */
+#define	 UTS_TXFULL	 (1<<4)	 /* TxFIFO full */
+#define	 UTS_RXFULL	 (1<<3)	 /* RxFIFO full */
+#define	 UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
 /* We've been assigned a range on the "Low-density serial ports" major */
-#ifdef CONFIG_ARCH_MXC
-#define SERIAL_IMX_MAJOR        207
-#define MINOR_START	        16
+#define SERIAL_IMX_MAJOR	207
+#define MINOR_START		16
 #define DEV_NAME		"ttymxc"
 #define MAX_INTERNAL_IRQ	MXC_INTERNAL_IRQS
-#endif
 
 /*
  * This determines how often we check the modem status signals
@@ -301,7 +287,7 @@ static void imx_stop_tx(struct uart_port *port)
 			writel(temp, sport->port.membase + UCR1);
 
 			temp = readl(sport->port.membase + UCR4);
-			temp &= ~(UCR4_TCEN);
+			temp &= ~UCR4_TCEN;
 			writel(temp, sport->port.membase + UCR4);
 
 			while (readl(sport->port.membase + URXD0) &
@@ -332,7 +318,7 @@ static void imx_stop_rx(struct uart_port *port)
 	unsigned long temp;
 
 	temp = readl(sport->port.membase + UCR2);
-	writel(temp &~ UCR2_RXEN, sport->port.membase + UCR2);
+	writel(temp & ~UCR2_RXEN, sport->port.membase + UCR2);
 }
 
 /*
@@ -377,11 +363,11 @@ static void imx_start_tx(struct uart_port *port)
 	if (USE_IRDA(sport)) {
 		/* half duplex in IrDA mode; have to disable receive mode */
 		temp = readl(sport->port.membase + UCR4);
-		temp &= ~(UCR4_DREN);
+		temp &= ~UCR4_DREN;
 		writel(temp, sport->port.membase + UCR4);
 
 		temp = readl(sport->port.membase + UCR1);
-		temp &= ~(UCR1_RRDYEN);
+		temp &= ~UCR1_RRDYEN;
 		writel(temp, sport->port.membase + UCR1);
 	}
 
@@ -472,7 +458,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 		if (uart_handle_sysrq_char(&sport->port, (unsigned char)rx))
 			continue;
 
-		if (rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) ) {
+		if (rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR)) {
 			if (rx & URXD_PRERR)
 				sport->port.icount.parity++;
 			else if (rx & URXD_FRMERR)
@@ -581,7 +567,7 @@ static void imx_break_ctl(struct uart_port *port, int break_state)
 
 	temp = readl(sport->port.membase + UCR1) & ~UCR1_SNDBRK;
 
-	if ( break_state != 0 )
+	if (break_state != 0)
 		temp |= UCR1_SNDBRK;
 
 	writel(temp, sport->port.membase + UCR1);
@@ -604,7 +590,7 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 	ufcr_rfdiv = (clk_get_rate(sport->clk) + sport->port.uartclk / 2)
 			/ sport->port.uartclk;
 
-	if(!ufcr_rfdiv)
+	if (!ufcr_rfdiv)
 		ufcr_rfdiv = 1;
 
 	val |= UFCR_RFDIV_REG(ufcr_rfdiv);
@@ -688,7 +674,7 @@ static int imx_startup(struct uart_port *port)
 
 	if (USE_IRDA(sport)) {
 		temp |= UCR1_IREN;
-		temp &= ~(UCR1_RTSDEN);
+		temp &= ~UCR1_RTSDEN;
 	}
 
 	writel(temp, sport->port.membase + UCR1);
@@ -706,25 +692,25 @@ static int imx_startup(struct uart_port *port)
 		}
 	}
 
-#if defined CONFIG_ARCH_MX2 || defined CONFIG_ARCH_MX3
-	temp = readl(sport->port.membase + UCR3);
-	temp |= UCR3_RXDMUXSEL;
-	writel(temp, sport->port.membase + UCR3);
-#endif
+	if (!cpu_is_mx1()) {
+		temp = readl(sport->port.membase + UCR3);
+		temp |= UCR3_RXDMUXSEL;
+		writel(temp, sport->port.membase + UCR3);
+	}
 
 	if (USE_IRDA(sport)) {
 		temp = readl(sport->port.membase + UCR4);
 		if (sport->irda_inv_rx)
 			temp |= UCR4_INVR;
 		else
-			temp &= ~(UCR4_INVR);
+			temp &= ~UCR4_INVR;
 		writel(temp | UCR4_DREN, sport->port.membase + UCR4);
 
 		temp = readl(sport->port.membase + UCR3);
 		if (sport->irda_inv_tx)
 			temp |= UCR3_INVT;
 		else
-			temp &= ~(UCR3_INVT);
+			temp &= ~UCR3_INVT;
 		writel(temp, sport->port.membase + UCR3);
 	}
 
@@ -763,7 +749,7 @@ static void imx_shutdown(struct uart_port *port)
 	unsigned long temp;
 
 	temp = readl(sport->port.membase + UCR2);
-	temp &= ~(UCR2_TXEN);
+	temp &= ~UCR2_TXEN;
 	writel(temp, sport->port.membase + UCR2);
 
 	if (USE_IRDA(sport)) {
@@ -796,7 +782,7 @@ static void imx_shutdown(struct uart_port *port)
 	temp = readl(sport->port.membase + UCR1);
 	temp &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
 	if (USE_IRDA(sport))
-		temp &= ~(UCR1_IREN);
+		temp &= ~UCR1_IREN;
 
 	writel(temp, sport->port.membase + UCR1);
 }
@@ -838,7 +824,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 		ucr2 = UCR2_SRST | UCR2_IRTS;
 
 	if (termios->c_cflag & CRTSCTS) {
-		if( sport->have_rtscts ) {
+		if (sport->have_rtscts) {
 			ucr2 &= ~UCR2_IRTS;
 			ucr2 |= UCR2_CTSC;
 		} else {
@@ -898,12 +884,12 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	writel(old_ucr1 & ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN),
 			sport->port.membase + UCR1);
 
-	while ( !(readl(sport->port.membase + USR2) & USR2_TXDC))
+	while (!(readl(sport->port.membase + USR2) & USR2_TXDC))
 		barrier();
 
 	/* then, disable everything */
 	old_txrxen = readl(sport->port.membase + UCR2);
-	writel(old_txrxen & ~( UCR2_TXEN | UCR2_RXEN),
+	writel(old_txrxen & ~(UCR2_TXEN | UCR2_RXEN),
 			sport->port.membase + UCR2);
 	old_txrxen &= (UCR2_TXEN | UCR2_RXEN);
 
@@ -936,15 +922,15 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	denom -= 1;
 
 	ufcr = readl(sport->port.membase + UFCR);
-	ufcr = (ufcr & (~UFCR_RFDIV)) | UFCR_RFDIV_REG(div);
+	ufcr = (ufcr & ~UFCR_RFDIV) | UFCR_RFDIV_REG(div);
 	writel(ufcr, sport->port.membase + UFCR);
 
 	writel(num, sport->port.membase + UBIR);
 	writel(denom, sport->port.membase + UBMR);
 
-#ifdef ONEMS
-	writel(sport->port.uartclk / div / 1000, sport->port.membase + ONEMS);
-#endif
+	if (!cpu_is_mx1()) {
+		writel(sport->port.uartclk / div / 1000, sport->port.membase + ONEMS);
+	}
 
 	writel(old_ucr1, sport->port.membase + UCR1);
 
@@ -1074,17 +1060,20 @@ static void
 imx_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct imx_port *sport = imx_ports[co->index];
-	unsigned int old_ucr1, old_ucr2;
+	unsigned int old_ucr1, old_ucr2, ucr1;
 
 	/*
 	 *	First, save UCR1/2 and then disable interrupts
 	 */
-	old_ucr1 = readl(sport->port.membase + UCR1);
+	ucr1 = old_ucr1 = readl(sport->port.membase + UCR1);
 	old_ucr2 = readl(sport->port.membase + UCR2);
 
-	writel((old_ucr1 | UCR1_UARTCLKEN | UCR1_UARTEN) &
-		~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN),
-		sport->port.membase + UCR1);
+	if (cpu_is_mx1())
+		ucr1 |= MX1_UCR1_UARTCLKEN;
+	ucr1 |= UCR1_UARTEN;
+	ucr1 &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN);
+
+	writel(ucr1, sport->port.membase + UCR1);
 
 	writel(old_ucr2 | UCR2_TXEN, sport->port.membase + UCR2);
 
@@ -1109,7 +1098,7 @@ imx_console_get_options(struct imx_port *sport, int *baud,
 			   int *parity, int *bits)
 {
 
-	if ( readl(sport->port.membase + UCR1) | UCR1_UARTEN ) {
+	if (readl(sport->port.membase + UCR1) | UCR1_UARTEN) {
 		/* ok, the port was enabled */
 		unsigned int ucr2, ubir,ubmr, uartclk;
 		unsigned int baud_raw;
@@ -1142,7 +1131,8 @@ imx_console_get_options(struct imx_port *sport, int *baud,
 		uartclk = clk_get_rate(sport->clk);
 		uartclk /= ucfr_rfdiv;
 
-		{	/*
+		{
+			/*
 			 * The next code provides exact computation of
 			 *   baud_raw = round(((uartclk/16) * (ubir + 1)) / (ubmr + 1))
 			 * without need of float support or long long division,
@@ -1157,7 +1147,7 @@ imx_console_get_options(struct imx_port *sport, int *baud,
 			*baud = (baud_raw + 50) / 100 * 100;
 		}
 
-		if(*baud != baud_raw)
+		if (*baud != baud_raw)
 			printk(KERN_INFO "Serial: Console IMX rounded baud rate from %d to %d\n",
 				baud_raw, *baud);
 	}
@@ -1180,7 +1170,7 @@ imx_console_setup(struct console *co, char *options)
 	if (co->index == -1 || co->index >= ARRAY_SIZE(imx_ports))
 		co->index = 0;
 	sport = imx_ports[co->index];
-	if(sport == NULL)
+	if (sport == NULL)
 		return -ENODEV;
 
 	if (options)
@@ -1210,18 +1200,18 @@ static struct console imx_console = {
 #endif
 
 static struct uart_driver imx_reg = {
-	.owner          = THIS_MODULE,
-	.driver_name    = DRIVER_NAME,
-	.dev_name       = DEV_NAME,
-	.major          = SERIAL_IMX_MAJOR,
-	.minor          = MINOR_START,
-	.nr             = ARRAY_SIZE(imx_ports),
-	.cons           = IMX_CONSOLE,
+	.owner		= THIS_MODULE,
+	.driver_name	= DRIVER_NAME,
+	.dev_name	= DEV_NAME,
+	.major		= SERIAL_IMX_MAJOR,
+	.minor		= MINOR_START,
+	.nr		= ARRAY_SIZE(imx_ports),
+	.cons		= IMX_CONSOLE,
 };
 
-static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
+static int serial_imx_suspend(struct device *dev)
 {
-	struct imx_port *sport = platform_get_drvdata(dev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 
 	if (sport)
 		uart_suspend_port(&imx_reg, &sport->port);
@@ -1229,9 +1219,9 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int serial_imx_resume(struct platform_device *dev)
+static int serial_imx_resume(struct device *dev)
 {
-	struct imx_port *sport = platform_get_drvdata(dev);
+	struct imx_port *sport = dev_get_drvdata(dev);
 
 	if (sport)
 		uart_resume_port(&imx_reg, &sport->port);
@@ -1316,8 +1306,8 @@ deinit:
 	if (pdata->exit)
 		pdata->exit(pdev);
 clkput:
-	clk_put(sport->clk);
 	clk_disable(sport->clk);
+	clk_put(sport->clk);
 unmap:
 	iounmap(sport->port.membase);
 free:
@@ -1337,10 +1327,9 @@ static int serial_imx_remove(struct platform_device *pdev)
 
 	if (sport) {
 		uart_remove_one_port(&imx_reg, &sport->port);
+		clk_disable(sport->clk);
 		clk_put(sport->clk);
 	}
-
-	clk_disable(sport->clk);
 
 	if (pdata->exit)
 		pdata->exit(pdev);
@@ -1351,15 +1340,18 @@ static int serial_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct dev_pm_ops serial_imx_pm_ops = {
+	.suspend	= serial_imx_suspend,
+	.resume		= serial_imx_resume,
+};
+
 static struct platform_driver serial_imx_driver = {
 	.probe		= serial_imx_probe,
 	.remove		= serial_imx_remove,
-
-	.suspend	= serial_imx_suspend,
-	.resume		= serial_imx_resume,
 	.driver		= {
 		.name	= "imx-uart",
 		.owner	= THIS_MODULE,
+		.pm	= &serial_imx_pm_ops,
 	},
 };
 

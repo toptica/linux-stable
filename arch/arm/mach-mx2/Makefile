@@ -1,6 +1,7 @@
 #
 # Makefile for the linux kernel.
 #
+ccflags-$(CONFIG_KARO_DEBUG)              += -DDEBUG
 
 # Object file lists.
 
@@ -8,7 +9,7 @@ obj-y	:=  generic.o devices.o serial.o
 
 obj-$(CONFIG_MACH_MX21) += clock_imx21.o
 
-obj-$(CONFIG_MACH_MX27) += cpu_imx27.o
+obj-$(CONFIG_MACH_MX27) += cpu_imx27.o pm-imx27.o
 obj-$(CONFIG_MACH_MX27) += clock_imx27.o
 
 obj-$(CONFIG_MACH_MX21ADS) += mx21ads.o
@@ -17,4 +18,6 @@ obj-$(CONFIG_MACH_PCM038) += pcm038.o
 obj-$(CONFIG_MACH_PCM970_BASEBOARD) += pcm970-baseboard.o
 obj-$(CONFIG_MACH_MX27_3DS) += mx27pdk.o
 obj-$(CONFIG_MACH_MX27LITE) += mx27lite.o
-
+obj-$(CONFIG_MACH_TX27)			+= karo-tx27.o
+obj-$(CONFIG_MACH_TX27_BASEBOARD_STK5)	+= stk5-baseboard.o
+obj-$(CONFIG_MACH_TX27_CUSTOM)		+= stk5-custom.o

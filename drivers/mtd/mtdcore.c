@@ -23,14 +23,18 @@
 
 #include "mtdcore.h"
 
-static int mtd_cls_suspend(struct device *dev, pm_message_t state);
+static int mtd_cls_suspend(struct device *dev);
 static int mtd_cls_resume(struct device *dev);
+
+static struct dev_pm_ops mtd_class_pm_ops = {
+	.suspend = mtd_cls_suspend,
+	.resume = mtd_cls_resume,
+};
 
 static struct class mtd_class = {
 	.name = "mtd",
 	.owner = THIS_MODULE,
-	.suspend = mtd_cls_suspend,
-	.resume = mtd_cls_resume,
+	.pm = &mtd_class_pm_ops,
 };
 
 /* These are exported solely for the purpose of mtd_blkdevs.c. You
@@ -62,7 +66,7 @@ static void mtd_release(struct device *dev)
 		device_destroy(&mtd_class, index + 1);
 }
 
-static int mtd_cls_suspend(struct device *dev, pm_message_t state)
+static int mtd_cls_suspend(struct device *dev)
 {
 	struct mtd_info *mtd = dev_to_mtd(dev);
 
@@ -75,7 +79,7 @@ static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 static int mtd_cls_resume(struct device *dev)
 {
 	struct mtd_info *mtd = dev_to_mtd(dev);
-	
+
 	if (mtd && mtd->resume)
 		mtd->resume(mtd);
 	return 0;
@@ -387,7 +391,7 @@ void register_mtd_user (struct mtd_notifier *new)
 
 	list_add(&new->list, &mtd_notifiers);
 
- 	__module_get(THIS_MODULE);
+	__module_get(THIS_MODULE);
 
 	for (i=0; i< MAX_MTD_DEVICES; i++)
 		if (mtd_table[i])
@@ -481,8 +485,8 @@ out_unlock:
  *	device name
  *	@name: MTD device name to open
  *
- * 	This function returns MTD device description structure in case of
- * 	success and an error code in case of failure.
+ *	This function returns MTD device description structure in case of
+ *	success and an error code in case of failure.
  */
 
 struct mtd_info *get_mtd_device_nm(const char *name)
@@ -597,31 +601,31 @@ static int mtd_read_proc (char *page, char **start, off_t off, int count,
 			  int *eof, void *data_unused)
 {
 	int len, l, i;
-        off_t   begin = 0;
+	off_t   begin = 0;
 
 	mutex_lock(&mtd_table_mutex);
 
 	len = sprintf(page, "dev:    size   erasesize  name\n");
-        for (i=0; i< MAX_MTD_DEVICES; i++) {
+	for (i=0; i< MAX_MTD_DEVICES; i++) {
 
-                l = mtd_proc_info(page + len, i);
-                len += l;
-                if (len+begin > off+count)
-                        goto done;
-                if (len+begin < off) {
-                        begin += len;
-                        len = 0;
-                }
-        }
+		l = mtd_proc_info(page + len, i);
+		len += l;
+		if (len+begin > off+count)
+			goto done;
+		if (len+begin < off) {
+			begin += len;
+			len = 0;
+		}
+	}
 
-        *eof = 1;
+	*eof = 1;
 
 done:
 	mutex_unlock(&mtd_table_mutex);
-        if (off >= len+begin)
-                return 0;
-        *start = page + (off-begin);
-        return ((count < begin+len-off) ? count : begin+len-off);
+	if (off >= len+begin)
+		return 0;
+	*start = page + (off-begin);
+	return ((count < begin+len-off) ? count : begin+len-off);
 }
 
 #endif /* CONFIG_PROC_FS */

@@ -1,6 +1,7 @@
 #
 # Makefile for ALSA
 #
+ccflags-$(CONFIG_SND_DEBUG)	+= -DDEBUG
 
 obj-$(CONFIG_SND_ARMAACI)	+= snd-aaci.o
 snd-aaci-objs			:= aaci.o devdma.o
@@ -14,3 +15,13 @@ snd-pxa2xx-lib-$(CONFIG_SND_PXA2XX_LIB_AC97)	+= pxa2xx-ac97-lib.o
 
 obj-$(CONFIG_SND_PXA2XX_AC97)	+= snd-pxa2xx-ac97.o
 snd-pxa2xx-ac97-objs		:= pxa2xx-ac97.o
+
+obj-$(CONFIG_SND_MX27_PCM)	+= snd-mx27-pcm.o
+snd-mx27-pcm-objs		:= mx27-pcm.o
+obj-$(CONFIG_SND_MX25_PCM)	+= snd-mx25-pcm.o
+snd-mx25-pcm-objs		:= mxc-pcm_v2.o
+obj-$(CONFIG_SND_MX51_PCM)	+= snd-mx51-pcm.o
+snd-mx51-pcm-objs		:= mxc-pcm_v2.o
+
+obj-$(CONFIG_SND_MXC_AC97)	+= snd-mxc-ac97.o
+snd-mxc-ac97-objs		:= mxc-ac97.o

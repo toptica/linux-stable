@@ -32,94 +32,27 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/semaphore.h>
 #include <linux/string.h>
 
 #include <mach/clock.h>
+#include <mach/hardware.h>
 
 static LIST_HEAD(clocks);
-static DEFINE_MUTEX(clocks_mutex);
+static DEFINE_MUTEX(clocks_lock);
 
 /*-------------------------------------------------------------------------
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
-/*
- * All the code inside #ifndef CONFIG_COMMON_CLKDEV can be removed once all
- * MXC architectures have switched to using clkdev.
- */
-#ifndef CONFIG_COMMON_CLKDEV
-/*
- * Retrieve a clock by name.
- *
- * Note that we first try to use device id on the bus
- * and clock name. If this fails, we try to use "<name>.<id>". If this fails,
- * we try to use clock name only.
- * The reference count to the clock's module owner ref count is incremented.
- */
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *p, *clk = ERR_PTR(-ENOENT);
-	int idno;
-	const char *str;
-
-	if (id == NULL)
-		return clk;
-
-	if (dev == NULL || dev->bus != &platform_bus_type)
-		idno = -1;
-	else
-		idno = to_platform_device(dev)->id;
-
-	mutex_lock(&clocks_mutex);
-
-	list_for_each_entry(p, &clocks, node) {
-		if (p->id == idno &&
-		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
-			clk = p;
-			goto found;
-		}
-	}
-
-	str = strrchr(id, '.');
-	if (str) {
-		int cnt = str - id;
-		str++;
-		idno = simple_strtol(str, NULL, 10);
-		list_for_each_entry(p, &clocks, node) {
-			if (p->id == idno &&
-			    strlen(p->name) == cnt &&
-			    strncmp(id, p->name, cnt) == 0 &&
-			    try_module_get(p->owner)) {
-				clk = p;
-				goto found;
-			}
-		}
-	}
-
-	list_for_each_entry(p, &clocks, node) {
-		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
-			clk = p;
-			goto found;
-		}
-	}
-
-	printk(KERN_WARNING "clk: Unable to get requested clock: %s\n", id);
-
-found:
-	mutex_unlock(&clocks_mutex);
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-#endif
-
 static void __clk_disable(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
+		return;
+
+	if (WARN_ON(clk->usecount == 0))
 		return;
 
 	__clk_disable(clk->parent);
@@ -153,9 +86,9 @@ int clk_enable(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
-	mutex_lock(&clocks_mutex);
+	mutex_lock(&clocks_lock);
 	ret = __clk_enable(clk);
-	mutex_unlock(&clocks_mutex);
+	mutex_unlock(&clocks_lock);
 
 	return ret;
 }
@@ -170,9 +103,9 @@ void clk_disable(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return;
 
-	mutex_lock(&clocks_mutex);
+	mutex_lock(&clocks_lock);
 	__clk_disable(clk);
-	mutex_unlock(&clocks_mutex);
+	mutex_unlock(&clocks_lock);
 }
 EXPORT_SYMBOL(clk_disable);
 
@@ -192,16 +125,6 @@ unsigned long clk_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent);
 }
 EXPORT_SYMBOL(clk_get_rate);
-
-#ifndef CONFIG_COMMON_CLKDEV
-/* Decrement the clock's module reference count */
-void clk_put(struct clk *clk)
-{
-	if (clk && !IS_ERR(clk))
-		module_put(clk->owner);
-}
-EXPORT_SYMBOL(clk_put);
-#endif
 
 /* Round the requested clock rate to the nearest supported
  * rate that is less than or equal to the requested rate.
@@ -226,9 +149,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk) || clk->set_rate == NULL || rate == 0)
 		return ret;
 
-	mutex_lock(&clocks_mutex);
+	mutex_lock(&clocks_lock);
 	ret = clk->set_rate(clk, rate);
-	mutex_unlock(&clocks_mutex);
+	mutex_unlock(&clocks_lock);
 
 	return ret;
 }
@@ -243,11 +166,11 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	    IS_ERR(parent) || clk->set_parent == NULL)
 		return ret;
 
-	mutex_lock(&clocks_mutex);
+	mutex_lock(&clocks_lock);
 	ret = clk->set_parent(clk, parent);
 	if (ret == 0)
 		clk->parent = parent;
-	mutex_unlock(&clocks_mutex);
+	mutex_unlock(&clocks_lock);
 
 	return ret;
 }
@@ -264,80 +187,6 @@ struct clk *clk_get_parent(struct clk *clk)
 	return clk->parent;
 }
 EXPORT_SYMBOL(clk_get_parent);
-
-#ifndef CONFIG_COMMON_CLKDEV
-/*
- * Add a new clock to the clock tree.
- */
-int clk_register(struct clk *clk)
-{
-	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
-
-	mutex_lock(&clocks_mutex);
-	list_add(&clk->node, &clocks);
-	mutex_unlock(&clocks_mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL(clk_register);
-
-/* Remove a clock from the clock tree */
-void clk_unregister(struct clk *clk)
-{
-	if (clk == NULL || IS_ERR(clk))
-		return;
-
-	mutex_lock(&clocks_mutex);
-	list_del(&clk->node);
-	mutex_unlock(&clocks_mutex);
-}
-EXPORT_SYMBOL(clk_unregister);
-
-#ifdef CONFIG_PROC_FS
-static int mxc_clock_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
-{
-	struct clk *clkp;
-	char *p = page;
-	int len;
-
-	list_for_each_entry(clkp, &clocks, node) {
-		p += sprintf(p, "%s-%d:\t\t%lu, %d", clkp->name, clkp->id,
-				clk_get_rate(clkp), clkp->usecount);
-		if (clkp->parent)
-			p += sprintf(p, ", %s-%d\n", clkp->parent->name,
-				     clkp->parent->id);
-		else
-			p += sprintf(p, "\n");
-	}
-
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
-}
-
-static int __init mxc_setup_proc_entry(void)
-{
-	struct proc_dir_entry *res;
-
-	res = create_proc_read_entry("cpu/clocks", 0, NULL,
-				     mxc_clock_read_proc, NULL);
-	if (!res) {
-		printk(KERN_ERR "Failed to create proc/cpu/clocks\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-late_initcall(mxc_setup_proc_entry);
-#endif /* CONFIG_PROC_FS */
-#endif
 
 /*
  * Get the resulting clock rate from a PLL register value and the input
@@ -363,12 +212,11 @@ unsigned long mxc_decode_pll(unsigned int reg_val, u32 freq)
 
 	mfn_abs = mfn;
 
-#if !defined CONFIG_ARCH_MX1 && !defined CONFIG_ARCH_MX21
-	if (mfn >= 0x200) {
-		mfn |= 0xFFFFFE00;
-		mfn_abs = -mfn;
-	}
-#endif
+	/* On all i.MXs except i.MX1 and i.MX21 mfn is a 10bit
+	 * 2's complements number
+	 */
+	if (!cpu_is_mx1() && !cpu_is_mx21() && mfn >= 0x200)
+		mfn_abs = 0x400 - mfn;
 
 	freq *= 2;
 	freq /= pd + 1;
@@ -376,8 +224,10 @@ unsigned long mxc_decode_pll(unsigned int reg_val, u32 freq)
 	ll = (unsigned long long)freq * mfn_abs;
 
 	do_div(ll, mfd + 1);
-	if (mfn < 0)
+
+	if (!cpu_is_mx1() && !cpu_is_mx21() && mfn >= 0x200)
 		ll = -ll;
+
 	ll = (freq * mfi) + ll;
 
 	return ll;

@@ -95,7 +95,7 @@ static unsigned int mx21ads_pins[] = {
 	PE23_PF_SD1_CLK,
 
 	/* NFC */
-	PF0_PF_NRFB,
+	PF0_PF_NFRB,
 	PF1_PF_NFCE,
 	PF2_PF_NFWP,
 	PF3_PF_NFCLE,

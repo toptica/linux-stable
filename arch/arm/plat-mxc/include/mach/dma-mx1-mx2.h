@@ -31,20 +31,27 @@
 #define DMA_MODE_WRITE		1
 #define DMA_MODE_MASK		1
 
-#define DMA_BASE IO_ADDRESS(DMA_BASE_ADDR)
+#define DMA_BASE MX2_IO_ADDRESS(DMA_BASE_ADDR)
 
 #define IMX_DMA_MEMSIZE_32	(0 << 4)
 #define IMX_DMA_MEMSIZE_8	(1 << 4)
 #define IMX_DMA_MEMSIZE_16	(2 << 4)
+#define IMX_DMA_MEMSIZE_MASK	(3 << 4)
+
 #define IMX_DMA_TYPE_LINEAR	(0 << 10)
 #define IMX_DMA_TYPE_2D		(1 << 10)
 #define IMX_DMA_TYPE_FIFO	(2 << 10)
+#define IMX_DMA_TYPE_MASK	(3 << 10)
 
 #define IMX_DMA_ERR_BURST     (1 << 0)
 #define IMX_DMA_ERR_REQUEST   (1 << 1)
 #define IMX_DMA_ERR_TRANSFER  (1 << 2)
 #define IMX_DMA_ERR_BUFFER    (1 << 3)
 #define IMX_DMA_ERR_TIMEOUT   (1 << 4)
+
+#define MXC_DMA_SIZE_UNLIMITED	((unsigned int)-1)
+
+struct scatterlist;
 
 int
 imx_dma_config_channel(int channel, unsigned int config_port,

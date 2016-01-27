@@ -127,5 +127,11 @@ source "drivers/staging/pata_rdc/Kconfig"
 
 source "drivers/staging/udlfb/Kconfig"
 
+source "drivers/staging/mxc-ipu/Kconfig"
+
+source "drivers/staging/mxc-vpu/Kconfig"
+
+source "drivers/staging/mxc-v4l/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

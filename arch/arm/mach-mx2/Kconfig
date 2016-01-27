@@ -21,6 +21,9 @@ comment "MX2 platforms:"
 config MACH_MX21ADS
 	bool "MX21ADS platform"
 	depends on MACH_MX21
+	select ARCH_MXC_HAS_USBH1
+	select ARCH_MXC_HAS_USBH2
+	select ARCH_MXC_HAS_USBOTG
 	help
 	  Include support for MX21ADS platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -28,6 +31,9 @@ config MACH_MX21ADS
 config MACH_MX27ADS
 	bool "MX27ADS platform"
 	depends on MACH_MX27
+	select ARCH_MXC_HAS_USBH1
+	select ARCH_MXC_HAS_USBH2
+	select ARCH_MXC_HAS_USBOTG
 	help
 	  Include support for MX27ADS platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -35,9 +41,70 @@ config MACH_MX27ADS
 config MACH_PCM038
 	bool "Phytec phyCORE-i.MX27 CPU module (pcm038)"
 	depends on MACH_MX27
+	select ARCH_MXC_HAS_USBH1
+	select ARCH_MXC_HAS_USBH2
+	select ARCH_MXC_HAS_USBOTG
 	help
 	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
 	  includes specific configurations for the module and its peripherals.
+
+config MACH_TX27
+	bool "Ka-Ro electronics TX27 module"
+	depends on MACH_MX27
+	select MXC_ULPI
+	help
+	  Include support for Ka-Ro TX27 processor module
+
+config KARO_DEBUG
+	bool "Enable Ka-Ro specific debug messages"
+	depends on MACH_TX27
+	help
+	  Compile the architecture specific files with -DDEBUG to enable
+	  additional debug messages
+
+config BASE_CLK_26MHz
+	bool "Use external 26MHz oscillator"
+	depends on MACH_TX27
+	default y
+	help
+	  Unselect this option to switch off the external 26MHz oscillator
+	  and use the 32.768kHz reference and i.MX27 internal FPM
+
+choice
+	prompt "Baseboard"
+	depends on MACH_TX27
+	default MACH_TX27_BASEBOARD_STK5
+
+config MACH_TX27_BASEBOARD_STK5
+	prompt "Ka-Ro STK5 development board"
+	bool
+	select ARCH_MXC_HAS_USBH2
+	select ARCH_MXC_HAS_USBOTG
+	help
+	  This adds board specific devices that can be found on Ka-Ro's
+	  STK5 evaluation board.
+endchoice
+
+config MACH_TX27_CUSTOM
+	bool "Custom platform initialisation"
+	depends on MACH_TX27_BASEBOARD_STK5
+	help
+	  Enable this option to add custom initialisation code found
+	  in arch/arm/mach-mx27/stk5-custom.c
+
+config I2C_IMX_SELECT1
+	bool "Enable I2C1 module"
+	default y
+	depends on I2C_IMX
+	help
+	  Enable MX51 I2C1 module.
+
+config I2C_IMX_SELECT2
+	bool "Enable I2C2 module"
+	default n
+	depends on I2C_IMX
+	help
+	  Enable MX51 I2C2 module.
 
 choice
 	prompt "Baseboard"
@@ -56,6 +123,9 @@ endchoice
 config MACH_MX27_3DS
 	bool "MX27PDK platform"
 	depends on MACH_MX27
+	select ARCH_MXC_HAS_USBH1
+	select ARCH_MXC_HAS_USBH2
+	select ARCH_MXC_HAS_USBOTG
 	help
 	  Include support for MX27PDK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -63,6 +133,9 @@ config MACH_MX27_3DS
 config MACH_MX27LITE
 	bool "LogicPD MX27 LITEKIT platform"
 	depends on MACH_MX27
+	select ARCH_MXC_HAS_USBH1
+	select ARCH_MXC_HAS_USBH2
+	select ARCH_MXC_HAS_USBOTG
 	help
 	  Include support for MX27 LITEKIT platform. This includes specific
 	  configurations for the board and its peripherals.

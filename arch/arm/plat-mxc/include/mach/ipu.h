@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/dmaengine.h>
+#include <linux/ipu.h>
 
 /* IPU DMA Controller channel definitions. */
 enum ipu_channel {
@@ -63,65 +64,14 @@ enum ipu_channel_status {
 
 #define IPU_CHANNELS_NUM 32
 
-enum pixel_fmt {
-	/* 1 byte */
-	IPU_PIX_FMT_GENERIC,
-	IPU_PIX_FMT_RGB332,
-	IPU_PIX_FMT_YUV420P,
-	IPU_PIX_FMT_YUV422P,
-	IPU_PIX_FMT_YUV420P2,
-	IPU_PIX_FMT_YVU422P,
-	/* 2 bytes */
-	IPU_PIX_FMT_RGB565,
-	IPU_PIX_FMT_RGB666,
-	IPU_PIX_FMT_BGR666,
-	IPU_PIX_FMT_YUYV,
-	IPU_PIX_FMT_UYVY,
-	/* 3 bytes */
-	IPU_PIX_FMT_RGB24,
-	IPU_PIX_FMT_BGR24,
-	/* 4 bytes */
-	IPU_PIX_FMT_GENERIC_32,
-	IPU_PIX_FMT_RGB32,
-	IPU_PIX_FMT_BGR32,
-	IPU_PIX_FMT_ABGR32,
-	IPU_PIX_FMT_BGRA32,
-	IPU_PIX_FMT_RGBA32,
-};
-
 enum ipu_color_space {
 	IPU_COLORSPACE_RGB,
 	IPU_COLORSPACE_YCBCR,
 	IPU_COLORSPACE_YUV
 };
 
-/*
- * Enumeration of IPU rotation modes
- */
-enum ipu_rotate_mode {
-	/* Note the enum values correspond to BAM value */
-	IPU_ROTATE_NONE = 0,
-	IPU_ROTATE_VERT_FLIP = 1,
-	IPU_ROTATE_HORIZ_FLIP = 2,
-	IPU_ROTATE_180 = 3,
-	IPU_ROTATE_90_RIGHT = 4,
-	IPU_ROTATE_90_RIGHT_VFLIP = 5,
-	IPU_ROTATE_90_RIGHT_HFLIP = 6,
-	IPU_ROTATE_90_LEFT = 7,
-};
-
 struct ipu_platform_data {
 	unsigned int	irq_base;
-};
-
-/*
- * Enumeration of DI ports for ADC.
- */
-enum display_port {
-	DISP0,
-	DISP1,
-	DISP2,
-	DISP3
 };
 
 struct idmac_video_param {
@@ -135,7 +85,7 @@ struct idmac_video_param {
 	bool			graphics_combine_en;
 	bool			global_alpha_en;
 	bool			key_color_en;
-	enum display_port	disp;
+	display_port_t		disp;
 	unsigned short		out_left;
 	unsigned short		out_top;
 };

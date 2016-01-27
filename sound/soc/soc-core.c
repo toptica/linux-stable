@@ -820,6 +820,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	ac97 = 0;
 	for (i = 0; i < card->num_links; i++) {
+		if (card->dai_link[i].cpu_dai == NULL)
+			continue;
 		found = 0;
 		list_for_each_entry(dai, &dai_list, list)
 			if (card->dai_link[i].cpu_dai == dai) {
@@ -834,6 +836,10 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 
 		if (card->dai_link[i].cpu_dai->ac97_control)
 			ac97 = 1;
+	}
+	if (!found) {
+		dev_warn(card->dev, "No DAI registered\n");
+		return;
 	}
 
 	/* If we have AC97 in the system then don't wait for the

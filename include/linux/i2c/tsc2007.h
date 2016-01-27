@@ -6,6 +6,8 @@
 struct tsc2007_platform_data {
 	u16	model;				/* 2007. */
 	u16	x_plate_ohms;
+	unsigned int poll_period_ns;
+	unsigned int poll_delay_ns;
 
 	int	(*get_pendown_state)(void);
 	void	(*clear_penirq)(void);		/* If needed, clear 2nd level

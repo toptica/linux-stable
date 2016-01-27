@@ -19,8 +19,10 @@
  */
 
 #include <linux/clk.h>
+#include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/delay.h>
 
 #include <asm/clkdev.h>
 #include <asm/div64.h>
@@ -30,41 +32,41 @@
 #include <mach/hardware.h>
 
 /* Register offsets */
-#define CCM_CSCR                (IO_ADDRESS(CCM_BASE_ADDR) + 0x0)
-#define CCM_MPCTL0              (IO_ADDRESS(CCM_BASE_ADDR) + 0x4)
-#define CCM_MPCTL1              (IO_ADDRESS(CCM_BASE_ADDR) + 0x8)
-#define CCM_SPCTL0              (IO_ADDRESS(CCM_BASE_ADDR) + 0xC)
-#define CCM_SPCTL1              (IO_ADDRESS(CCM_BASE_ADDR) + 0x10)
-#define CCM_OSC26MCTL           (IO_ADDRESS(CCM_BASE_ADDR) + 0x14)
-#define CCM_PCDR0               (IO_ADDRESS(CCM_BASE_ADDR) + 0x18)
-#define CCM_PCDR1               (IO_ADDRESS(CCM_BASE_ADDR) + 0x1c)
-#define CCM_PCCR0               (IO_ADDRESS(CCM_BASE_ADDR) + 0x20)
-#define CCM_PCCR1               (IO_ADDRESS(CCM_BASE_ADDR) + 0x24)
-#define CCM_CCSR                (IO_ADDRESS(CCM_BASE_ADDR) + 0x28)
-#define CCM_PMCTL               (IO_ADDRESS(CCM_BASE_ADDR) + 0x2c)
-#define CCM_PMCOUNT             (IO_ADDRESS(CCM_BASE_ADDR) + 0x30)
-#define CCM_WKGDCTL             (IO_ADDRESS(CCM_BASE_ADDR) + 0x34)
+#define CCM_CSCR		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x0)
+#define CCM_MPCTL0		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x4)
+#define CCM_MPCTL1		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x8)
+#define CCM_SPCTL0		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0xC)
+#define CCM_SPCTL1		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x10)
+#define CCM_OSC26MCTL		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x14)
+#define CCM_PCDR0		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x18)
+#define CCM_PCDR1		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x1c)
+#define CCM_PCCR0		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x20)
+#define CCM_PCCR1		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x24)
+#define CCM_CCSR		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x28)
+#define CCM_PMCTL		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x2c)
+#define CCM_PMCOUNT		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x30)
+#define CCM_WKGDCTL		(MX2_IO_ADDRESS(CCM_BASE_ADDR) + 0x34)
 
 #define CCM_CSCR_UPDATE_DIS	(1 << 31)
 #define CCM_CSCR_SSI2		(1 << 23)
 #define CCM_CSCR_SSI1		(1 << 22)
 #define CCM_CSCR_VPU		(1 << 21)
-#define CCM_CSCR_MSHC           (1 << 20)
-#define CCM_CSCR_SPLLRES        (1 << 19)
-#define CCM_CSCR_MPLLRES        (1 << 18)
-#define CCM_CSCR_SP             (1 << 17)
-#define CCM_CSCR_MCU            (1 << 16)
-#define CCM_CSCR_OSC26MDIV      (1 << 4)
-#define CCM_CSCR_OSC26M         (1 << 3)
-#define CCM_CSCR_FPM            (1 << 2)
-#define CCM_CSCR_SPEN           (1 << 1)
-#define CCM_CSCR_MPEN           (1 << 0)
+#define CCM_CSCR_MSHC		(1 << 20)
+#define CCM_CSCR_SPLLRES	(1 << 19)
+#define CCM_CSCR_MPLLRES	(1 << 18)
+#define CCM_CSCR_SP		(1 << 17)
+#define CCM_CSCR_MCU		(1 << 16)
+#define CCM_CSCR_OSC26MDIV	(1 << 4)
+#define CCM_CSCR_OSC26M		(1 << 3)
+#define CCM_CSCR_FPM		(1 << 2)
+#define CCM_CSCR_SPEN		(1 << 1)
+#define CCM_CSCR_MPEN		(1 << 0)
 
 /* i.MX27 TO 2+ */
-#define CCM_CSCR_ARM_SRC        (1 << 15)
+#define CCM_CSCR_ARM_SRC	(1 << 15)
 
-#define CCM_SPCTL1_LF           (1 << 15)
-#define CCM_SPCTL1_BRMO         (1 << 6)
+#define CCM_SPCTL1_LF		(1 << 15)
+#define CCM_SPCTL1_BRMO		(1 << 6)
 
 static struct clk mpll_main1_clk, mpll_main2_clk;
 
@@ -113,6 +115,28 @@ static void clk_spll_disable(struct clk *clk)
 
 	reg = __raw_readl(CCM_CSCR);
 	reg &= ~CCM_CSCR_SPEN;
+	__raw_writel(reg, CCM_CSCR);
+}
+
+static int clk_fpm_enable(struct clk *clk)
+{
+	unsigned long reg;
+
+	reg = __raw_readl(CCM_CSCR);
+	reg |= CCM_CSCR_FPM;
+	__raw_writel(reg, CCM_CSCR);
+
+	udelay(90);
+
+	return 0;
+}
+
+static void clk_fpm_disable(struct clk *clk)
+{
+	unsigned long reg;
+
+	reg = __raw_readl(CCM_CSCR);
+	reg &= ~CCM_CSCR_FPM;
 	__raw_writel(reg, CCM_CSCR);
 }
 
@@ -171,12 +195,12 @@ static int set_rate_cpu(struct clk *clk, unsigned long rate)
 
 	div--;
 
-	reg = __raw_readl(CCM_CSCR);
 	if (mx27_revision() >= CHIP_REV_2_0) {
+		reg = __raw_readl(CCM_CSCR);
+		__raw_writel(reg | CCM_CSCR_UPDATE_DIS, CCM_CSCR);
 		reg &= ~(3 << 12);
 		reg |= div << 12;
-		reg &= ~(CCM_CSCR_FPM | CCM_CSCR_SPEN);
-		__raw_writel(reg | CCM_CSCR_UPDATE_DIS, CCM_CSCR);
+		__raw_writel(reg, CCM_CSCR);
 	} else {
 		printk(KERN_ERR "Can't set CPU frequency!\n");
 	}
@@ -492,6 +516,8 @@ static struct clk ckil_clk = {
 static struct clk fpm_clk = {
 	.parent = &ckil_clk,
 	.get_rate = get_rate_fpm,
+	.enable = clk_fpm_enable,
+	.disable = clk_fpm_disable,
 };
 
 #define PCCR0 CCM_PCCR0
@@ -556,7 +582,7 @@ DEFINE_CLOCK(gpio_clk,     0, PCCR0, 25, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(fec_clk,      0, PCCR0, 26, NULL, &fec_clk1, &ahb_clk);
 DEFINE_CLOCK(emma_clk,     0, PCCR0, 27, NULL, &emma_clk1, &ahb_clk);
 DEFINE_CLOCK(dma_clk,      0, PCCR0, 28, NULL, &dma_clk1, &ahb_clk);
-DEFINE_CLOCK(cspi13_clk1,  0, PCCR0, 29, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(cspi3_clk1,  0, PCCR0, 29, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(cspi2_clk1,   0, PCCR0, 30, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(cspi1_clk1,   0, PCCR0, 31, NULL, NULL, &ipg_clk);
 
@@ -569,7 +595,7 @@ DEFINE_CLOCK1(per4_clk,    3, PCCR1,  7, per, NULL, &mpll_main2_clk);
 DEFINE_CLOCK1(per3_clk,    2, PCCR1,  8, per, NULL, &mpll_main2_clk);
 DEFINE_CLOCK1(per2_clk,    1, PCCR1,  9, per, NULL, &mpll_main2_clk);
 DEFINE_CLOCK1(per1_clk,    0, PCCR1, 10, per, NULL, &mpll_main2_clk);
-DEFINE_CLOCK(usb_clk1,     0, PCCR1, 11, NULL, NULL, &ahb_clk);
+DEFINE_CLOCK(usb_ahb_clk,  0, PCCR1, 11, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(slcdc_clk1,   0, PCCR1, 12, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(sahara2_clk1, 0, PCCR1, 13, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(rtic_clk1,    0, PCCR1, 14, NULL, NULL, &ahb_clk);
@@ -582,8 +608,8 @@ DEFINE_CLOCK(dma_clk1,     0, PCCR1, 20, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(csi_clk1,     0, PCCR1, 21, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(brom_clk,     0, PCCR1, 22, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(ata_clk,      0, PCCR1, 23, NULL, NULL, &ahb_clk);
-DEFINE_CLOCK(wdog_clk,     0, PCCR1, 24, NULL, NULL, &ipg_clk);
-DEFINE_CLOCK(usb_clk,      0, PCCR1, 25, get_rate_usb, &usb_clk1, &spll_clk);
+DEFINE_CLOCK(wdog_clk,     0, PCCR1, 24, NULL, &fpm_clk, &ipg_clk);
+DEFINE_CLOCK(usb_clk,      0, PCCR1, 25, get_rate_usb, NULL, &spll_clk);
 DEFINE_CLOCK(uart6_clk1,   0, PCCR1, 26, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(uart5_clk1,   0, PCCR1, 27, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(uart4_clk1,   0, PCCR1, 28, NULL, NULL, &ipg_clk);
@@ -594,7 +620,7 @@ DEFINE_CLOCK(uart1_clk1,   0, PCCR1, 31, NULL, NULL, &ipg_clk);
 /* Clocks we cannot directly gate, but drivers need their rates */
 DEFINE_CLOCK(cspi1_clk,    0, 0,      0, NULL, &cspi1_clk1, &per2_clk);
 DEFINE_CLOCK(cspi2_clk,    1, 0,      0, NULL, &cspi2_clk1, &per2_clk);
-DEFINE_CLOCK(cspi3_clk,    2, 0,      0, NULL, &cspi13_clk1, &per2_clk);
+DEFINE_CLOCK(cspi3_clk,    2, 0,      0, NULL, &cspi3_clk1, &per2_clk);
 DEFINE_CLOCK(sdhc1_clk,    0, 0,      0, NULL, &sdhc1_clk1, &per2_clk);
 DEFINE_CLOCK(sdhc2_clk,    1, 0,      0, NULL, &sdhc2_clk1, &per2_clk);
 DEFINE_CLOCK(sdhc3_clk,    2, 0,      0, NULL, &sdhc3_clk1, &per2_clk);
@@ -638,16 +664,20 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-mmc.0", NULL, sdhc1_clk)
 	_REGISTER_CLOCK("mxc-mmc.1", NULL, sdhc2_clk)
 	_REGISTER_CLOCK("mxc-mmc.2", NULL, sdhc3_clk)
-	_REGISTER_CLOCK(NULL, "cspi1", cspi1_clk)
-	_REGISTER_CLOCK(NULL, "cspi2", cspi2_clk)
-	_REGISTER_CLOCK(NULL, "cspi3", cspi3_clk)
+	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
+	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
+	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk)
 	_REGISTER_CLOCK(NULL, "csi", csi_clk)
-	_REGISTER_CLOCK(NULL, "usb", usb_clk)
-	_REGISTER_CLOCK(NULL, "ssi1", ssi1_clk)
-	_REGISTER_CLOCK(NULL, "ssi2", ssi2_clk)
+	_REGISTER_CLOCK(NULL, "usb_ahb", usb_ahb_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb", usb_clk)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb", usb_clk)
+	_REGISTER_CLOCK("mxc-ehci.2", "usb", usb_clk)
+	_REGISTER_CLOCK("mxc-ssi.0", NULL, ssi1_clk)
+	_REGISTER_CLOCK("mxc-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("mxc_nand.0", NULL, nfc_clk)
-	_REGISTER_CLOCK(NULL, "vpu", vpu_clk)
+	_REGISTER_CLOCK("mxc_vpu", NULL, vpu_clk)
 	_REGISTER_CLOCK(NULL, "dma", dma_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
 	_REGISTER_CLOCK(NULL, "brom", brom_clk)
@@ -658,15 +688,17 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "sahara2", sahara2_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
 	_REGISTER_CLOCK(NULL, "mstick", mstick_clk)
-	_REGISTER_CLOCK(NULL, "wdog", wdog_clk)
+	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
 	_REGISTER_CLOCK(NULL, "iim", iim_clk)
 	_REGISTER_CLOCK(NULL, "kpp", kpp_clk)
 	_REGISTER_CLOCK("mxc_w1.0", NULL, owire_clk)
-	_REGISTER_CLOCK(NULL, "rtc", rtc_clk)
+	_REGISTER_CLOCK("mxc_rtc", NULL, rtc_clk)
 	_REGISTER_CLOCK(NULL, "scc", scc_clk)
+	_REGISTER_CLOCK(NULL, "ckil", ckil_clk) /* needed  for MXC RTC */
+	_REGISTER_CLOCK(NULL, "cpu", cpu_clk)
 };
 
 /* Adjust the clock path for TO2 and later */
@@ -748,7 +780,32 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_enable(&uart1_clk);
 #endif
 
-	mxc_timer_init(&gpt1_clk);
+	pr_info("CPU: %lu.%03luMHz\n",
+		clk_get_rate(&cpu_clk) / 1000000,
+		clk_get_rate(&cpu_clk) / 1000 % 1000);
+	pr_info("AHB: %lu.%03luMHz\n",
+		clk_get_rate(&ahb_clk) / 1000000,
+		clk_get_rate(&ahb_clk) / 1000 % 1000);
+	pr_info("MPLL: %lu.%03luMHz\n",
+		clk_get_rate(&mpll_clk) / 1000000,
+		clk_get_rate(&mpll_clk) / 1000 % 1000);
+	pr_info("IPG: %lu.%03luMHz\n",
+		clk_get_rate(&ipg_clk) / 1000000,
+		clk_get_rate(&ipg_clk) / 1000 % 1000);
+	pr_info("USB: %lu.%03luMHz\n",
+		clk_get_rate(&usb_clk) / 1000000,
+		clk_get_rate(&usb_clk) / 1000 % 1000);
+	pr_info("LCD: %lu.%03luMHz\n",
+		clk_get_rate(&lcdc_clk) / 1000000,
+		clk_get_rate(&lcdc_clk) / 1000 % 1000);
+	pr_info("UART: %lu.%03luMHz\n",
+		clk_get_rate(&per1_clk) / 1000000,
+		clk_get_rate(&per1_clk) / 1000 % 1000);
+	pr_info("SPI: %lu.%03luMHz\n",
+		clk_get_rate(&per2_clk) / 1000000,
+		clk_get_rate(&per2_clk) / 1000 % 1000);
+
+	mxc_timer_init(&gpt1_clk, MX2_IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT1);
 
 	return 0;
 }

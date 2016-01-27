@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/fsl_devices.h>
 #include <linux/platform_device.h>
+#include <mach/hardware.h>
 
 static struct clk *mxc_ahb_clk;
 static struct clk *mxc_usb_clk;
@@ -31,14 +32,12 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	mxc_ahb_clk = clk_get(&pdev->dev, "usb_ahb");
 	if (IS_ERR(mxc_ahb_clk))
 		return PTR_ERR(mxc_ahb_clk);
-
 	ret = clk_enable(mxc_ahb_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "clk_enable(\"usb_ahb\") failed\n");
 		goto eenahb;
 	}
 
-	/* make sure USB_CLK is running at 60 MHz +/- 1000 Hz */
 	mxc_usb_clk = clk_get(&pdev->dev, "usb");
 	if (IS_ERR(mxc_usb_clk)) {
 		dev_err(&pdev->dev, "clk_get(\"usb\") failed\n");
@@ -46,13 +45,14 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 		goto egusb;
 	}
 
+	/* make sure USB_CLK is running at 60 MHz +/- 1000 Hz */
 	freq = clk_get_rate(mxc_usb_clk);
 	if (pdata->phy_mode != FSL_USB2_PHY_ULPI &&
-	    (freq < 59999000 || freq > 60001000)) {
+		(freq < 59999000 || freq > 60001000)) {
 		dev_err(&pdev->dev, "USB_CLK=%lu, should be 60MHz\n", freq);
+		ret = -EINVAL;
 		goto eclkrate;
 	}
-
 	ret = clk_enable(mxc_usb_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "clk_enable(\"usb_clk\") failed\n");
@@ -64,7 +64,6 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 eenusb:
 eclkrate:
 	clk_put(mxc_usb_clk);
-	mxc_usb_clk = NULL;
 egusb:
 	clk_disable(mxc_ahb_clk);
 eenahb:

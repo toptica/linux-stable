@@ -21,42 +21,38 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 
-#include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/system.h>
+#include <mach/common.h>
+#include <mach/hardware.h>
+#include <mach/system.h>
 
-#ifdef CONFIG_ARCH_MX1
-#define WDOG_WCR_REG		IO_ADDRESS(WDT_BASE_ADDR)
-#define WDOG_WCR_ENABLE		(1 << 0)
-#else
-#define WDOG_WCR_REG		IO_ADDRESS(WDOG_BASE_ADDR)
-#define WDOG_WCR_ENABLE		(1 << 2)
-#endif
+static void __iomem *wdog_base;
+static struct clk *wdt_clk;
 
 /*
  * Reset the system. It is called by machine_restart().
  */
 void arch_reset(char mode, const char *cmd)
 {
-	if (!cpu_is_mx1()) {
-		struct clk *clk;
+	unsigned int wcr_enable;
 
-		clk = clk_get_sys("imx-wdt.0", NULL);
-		if (!IS_ERR(clk))
-			clk_enable(clk);
-	}
+	if (cpu_is_mx1())
+		wcr_enable = 1 << 0;
+	else
+		wcr_enable = 0;
 
 	/* Assert SRS signal */
-	__raw_writew(WDOG_WCR_ENABLE, WDOG_WCR_REG);
+	__raw_writew(wcr_enable, wdog_base);
 
 	/* wait for reset to assert... */
 	mdelay(500);
-
 	printk(KERN_ERR "Watchdog reset failed to assert reset\n");
 
 	/* delay to allow the serial port to show the message */
@@ -65,3 +61,23 @@ void arch_reset(char mode, const char *cmd)
 	/* we'll take a jump through zero as a poor second */
 	cpu_reset(0);
 }
+
+void mxc_arch_reset_init(void __iomem *base)
+{
+	wdog_base = base;
+}
+
+static int __init mxc_wdt_init(void)
+{
+	if (cpu_is_mx1() || cpu_is_mx5())
+		return 0;
+
+	wdt_clk = clk_get_sys("imx-wdt.0", NULL);
+	if (IS_ERR(wdt_clk)) {
+		printk(KERN_CRIT "%s: Failed to get imx-wdt.0 clk: %ld; system reset may not work\n",
+		       __FUNCTION__, PTR_ERR(wdt_clk));
+		return PTR_ERR(wdt_clk);
+	}
+	return clk_enable(wdt_clk);
+}
+core_initcall(mxc_wdt_init);

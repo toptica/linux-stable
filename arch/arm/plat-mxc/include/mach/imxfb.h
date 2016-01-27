@@ -2,6 +2,8 @@
  * This structure describes the machine which we are running on.
  */
 
+#include <linux/fb.h>
+
 #define PCR_TFT		(1 << 31)
 #define PCR_COLOR	(1 << 30)
 #define PCR_PBSIZ_1	(0 << 28)
@@ -13,7 +15,8 @@
 #define PCR_BPIX_4	(2 << 25)
 #define PCR_BPIX_8	(3 << 25)
 #define PCR_BPIX_12	(4 << 25)
-#define PCR_BPIX_16	(4 << 25)
+#define PCR_BPIX_16	(5 << 25)
+#define PCR_BPIX_18	(6 << 25)
 #define PCR_PIXPOL	(1 << 24)
 #define PCR_FLMPOL	(1 << 23)
 #define PCR_LPPOL	(1 << 22)
@@ -39,42 +42,34 @@
 #define LSCR1_PS_RISE_DELAY(x)    (((x) & 0x7f) << 26)
 #define LSCR1_CLS_RISE_DELAY(x)   (((x) & 0x3f) << 16)
 #define LSCR1_REV_TOGGLE_DELAY(x) (((x) & 0xf) << 8)
-#define LSCR1_GRAY2(x)            (((x) & 0xf) << 4)
-#define LSCR1_GRAY1(x)            (((x) & 0xf))
+#define LSCR1_GRAY2(x)		  (((x) & 0xf) << 4)
+#define LSCR1_GRAY1(x)		  (((x) & 0xf))
 
 #define DMACR_BURST	(1 << 31)
 #define DMACR_HM(x)	(((x) & 0xf) << 16)
 #define DMACR_TM(x)	((x) & 0xf)
 
+struct imx_fb_videomode {
+	struct fb_videomode mode;
+	u32 pcr;
+	unsigned char	bpp;
+};
+
 struct imx_fb_platform_data {
-	u_long		pixclock;
-
-	u_short		xres;
-	u_short		yres;
-
-	u_int		nonstd;
-	u_char		bpp;
-	u_char		hsync_len;
-	u_char		left_margin;
-	u_char		right_margin;
-
-	u_char		vsync_len;
-	u_char		upper_margin;
-	u_char		lower_margin;
-	u_char		sync;
+	struct imx_fb_videomode *mode;
+	int		num_modes;
 
 	u_int		cmap_greyscale:1,
 			cmap_inverse:1,
 			cmap_static:1,
 			unused:29;
 
-	u_int		pcr;
 	u_int		pwmr;
 	u_int		lscr1;
 	u_int		dmacr;
 
-	u_char * fixed_screen_cpu;
-	dma_addr_t fixed_screen_dma;
+	void		*fixed_screen_cpu;
+	dma_addr_t	fixed_screen_dma;
 
 	int (*init)(struct platform_device *);
 	void (*exit)(struct platform_device *);

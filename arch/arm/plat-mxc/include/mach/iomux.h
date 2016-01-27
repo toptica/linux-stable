@@ -49,6 +49,9 @@
 #ifdef CONFIG_ARCH_MX2
 # define GPIO_PORT_MAX  5
 #endif
+#ifdef CONFIG_ARCH_MX25
+# define GPIO_PORT_MAX  3
+#endif
 
 #ifndef GPIO_PORT_MAX
 # error "GPIO config port count unknown!"
@@ -58,6 +61,10 @@
 
 #define GPIO_PORT_SHIFT 5
 #define GPIO_PORT_MASK (0x7 << GPIO_PORT_SHIFT)
+
+#define IOMUX_TO_GPIO(gpio_cookie)      ((gpio_cookie) & (GPIO_PORT_MASK | GPIO_PIN_MASK))
+#define GPIO_PORT(p)		(IOMUX_TO_GPIO(p) >> GPIO_PORT_SHIFT)
+#define GPIO_INDEX(p)		((p) & GPIO_PIN_MASK)
 
 #define GPIO_PORTA (0 << GPIO_PORT_SHIFT)
 #define GPIO_PORTB (1 << GPIO_PORT_SHIFT)
@@ -94,6 +101,8 @@
 #define GPIO_BOUT_0    (2 << GPIO_BOUT_SHIFT)
 #define GPIO_BOUT_1    (3 << GPIO_BOUT_SHIFT)
 
+#define GPIO_DFLT_LOW	(1 << 18)
+#define GPIO_DFLT_HIGH	(1 << 19)
 
 #ifdef CONFIG_ARCH_MX1
 #include <mach/iomux-mx1.h>
@@ -106,6 +115,9 @@
 #ifdef CONFIG_MACH_MX27
 #include <mach/iomux-mx27.h>
 #endif
+#endif
+#ifdef CONFIG_ARCH_MX25
+#include <mach/iomux-mx25.h>
 #endif
 
 
@@ -123,5 +135,7 @@ extern void mxc_gpio_mode(int gpio_mode);
 extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 	const char *label);
 extern void mxc_gpio_release_multiple_pins(const int *pin_list, int count);
+
+extern void mxc_iomux_init(void __iomem *iomux_base);
 
 #endif

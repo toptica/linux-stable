@@ -594,7 +594,10 @@ int phy_start_interrupts(struct phy_device *phydev)
 
 	atomic_set(&phydev->irq_disable, 0);
 	if (request_irq(phydev->irq, phy_interrupt,
-				IRQF_SHARED,
+				/* FIXME: IRQF_TRIGGER_* should be derived
+				 * from IRQ resource flags
+				 */
+				IRQF_SHARED | IRQF_TRIGGER_LOW,
 				"phy_interrupt",
 				phydev) < 0) {
 		printk(KERN_WARNING "%s: Can't get IRQ %d (PHY)\n",
