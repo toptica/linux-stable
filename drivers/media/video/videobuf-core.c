@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	printk(KERN_DEBUG "vbuf: " fmt , ## arg); } while (0)
+	printk(KERN_INFO "vbuf: " fmt , ## arg); } while (0)
 
 /* --------------------------------------------------------------------- */
 

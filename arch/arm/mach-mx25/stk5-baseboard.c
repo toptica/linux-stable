@@ -40,7 +40,12 @@
 #include <linux/mmc/host.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
+#include <linux/leds_pwm.h>
+#include <linux/elliptec.h>
+#include <linux/pwm.h>
 #include <linux/dma-mapping.h>
+
+#include <media/soc_camera.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -60,8 +65,9 @@
 #include <mach/imx-uart.h>
 #include <mach/mxc_ehci.h>
 #include <mach/board-stk5.h>
-#include <mach/imx_spi.h>
+#include <mach/spi.h>
 #include <mach/sdhci.h>
+#include <mach/mx25_camera.h>
 
 #include "devices.h"
 #include "karo.h"
@@ -143,6 +149,51 @@ static struct imxuart_platform_data stk5_uart_ports[] = {
 		.flags = IMXUART_HAVE_RTSCTS,
 	},
 };
+
+static struct platform_device *stk5_uart_devices[] = {
+#if UART1_ENABLED
+	&mxc_uart_device0,
+#endif
+#if UART2_ENABLED
+	&mxc_uart_device1,
+#endif
+#if UART3_ENABLED
+	&mxc_uart_device2,
+#endif
+#if UART4_ENABLED
+	&mxc_uart_device3,
+#endif
+#if UART5_ENABLED
+	&mxc_uart_device4,
+#endif
+};
+
+static void __init karo_stk5_serial_init(void)
+{
+	int i;
+
+	printk(KERN_INFO "%s: Registering serial ports\n",__FUNCTION__);
+	for (i = 0; i < ARRAY_SIZE(stk5_uart_devices); i++) {
+		int ret;
+		int port = stk5_uart_devices[i]->id;
+
+		DBG(0, "%s: Registering platform device[%d] @ %p dev %p: %s\n",
+			__FUNCTION__, i, stk5_uart_devices[i],
+			&stk5_uart_devices[i]->dev, stk5_uart_devices[i]->name);
+		ret = mxc_register_device(stk5_uart_devices[i],
+					&stk5_uart_ports[port]);
+		if (ret != 0) {
+			printk(KERN_WARNING "%s: Failed to register platform_device[%d]: %s: %d\n",
+				__FUNCTION__, i, stk5_uart_devices[i]->name, ret);
+		}
+	}
+}
+#else
+static void __init karo_stk5_serial_init(void)
+{
+	printk(KERN_INFO "%s: NO INITIALIZATION !!!!!!!!!!!!!!!!!!!!!!\n",__FUNCTION__);
+}
+#endif
 
 #if defined(CONFIG_ARCH_MXC_EHCI_USBH2) || defined(CONFIG_ARCH_MXC_EHCI_USBOTG)
 
@@ -464,48 +515,40 @@ static int __init tx25_usb_gadget_register(void)
 device_initcall(tx25_usb_gadget_register);
 #endif
 
-static struct platform_device *stk5_uart_devices[] = {
-#if UART1_ENABLED
-	&mxc_uart_device0,
-#endif
-#if UART2_ENABLED
-	&mxc_uart_device1,
-#endif
-#if UART3_ENABLED
-	&mxc_uart_device2,
-#endif
-#if UART4_ENABLED
-	&mxc_uart_device3,
-#endif
-#if UART5_ENABLED
-	&mxc_uart_device4,
-#endif
+
+#if defined(CONFIG_TOUCHSCREEN_MXC_ADC) || defined(CONFIG_TOUCHSCREEN_MXC_ADC_MODULE)
+
+#define ADC_INTERNAL_REFERENCE 1
+#define ADC_EXTERNAL_REFERENCE 0
+
+static struct pad_desc mx25_adc_extmux_gpios[] = {
+	MX25_PAD_A25__GPIO_2_11,
+	MX25_PAD_A15__GPIO_2_1,
 };
 
-static void __init karo_stk5_serial_init(void)
+static int __init karo_tx25_adc_register(void)
 {
-	int i;
+	int ret;
+	printk(KERN_INFO "registering ADC device ...\n");
 
-	for (i = 0; i < ARRAY_SIZE(stk5_uart_devices); i++) {
-		int ret;
-		int port = stk5_uart_devices[i]->id;
-
-		DBG(0, "%s: Registering platform device[%d] @ %p dev %p: %s\n",
-			__FUNCTION__, i, stk5_uart_devices[i],
-			&stk5_uart_devices[i]->dev, stk5_uart_devices[i]->name);
-		ret = mxc_register_device(stk5_uart_devices[i],
-					&stk5_uart_ports[port]);
-		if (ret != 0) {
-			printk(KERN_WARNING "%s: Failed to register platform_device[%d]: %s: %d\n",
-				__FUNCTION__, i, stk5_uart_devices[i]->name, ret);
-		}
+	DBG(0, "%s: Setting up GPIO pins for external ADC muxing\n", __FUNCTION__);
+	ret = mxc_iomux_v3_setup_multiple_pads(mx25_adc_extmux_gpios,
+					ARRAY_SIZE(mx25_adc_extmux_gpios));
+	if (ret) {
+		DBG(0, "%s: Failed to setup GPIO pins for external ADC muxing: %d\n",
+			__FUNCTION__, ret);
+		return ret;
 	}
+
+	ret = mxc_register_device(&mx25_tsc_device, (void *) ADC_INTERNAL_REFERENCE);
+	if (ret) {
+		printk(KERN_WARNING "Failed to register TSC device: %d\n", ret);
+	}
+	return ret;
 }
-#else
-static void __init karo_stk5_serial_init(void)
-{
-}
+device_initcall(karo_tx25_adc_register);
 #endif
+
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 static struct gpio_led stk5_leds[] = {
@@ -989,11 +1032,15 @@ static struct platform_device stk5_sdhc1_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_MXC) || defined(CONFIG_SPI_MXC_MODULE)
-static struct mxc_spi_master stk5_spi1_data = {
-	.maxchipselect = 2,
-	.spi_version = 0,
+#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
+
+static int mxcspi1_available_cs[5] = {-32,-31,-30,-29,20};
+
+static struct spi_imx_master mxcspi1_data = {
+	.num_chipselect = 5,
+	.chipselect = mxcspi1_available_cs,
 };
+
 
 static struct pad_desc stk5_cspi1_pads[] = {
 	MX25_PAD_CSPI1_MOSI__CSPI1_MOSI,
@@ -1004,22 +1051,130 @@ static struct pad_desc stk5_cspi1_pads[] = {
 	MX25_PAD_CSPI1_RDY__CSPI1_RDY,
 };
 
+static struct spi_board_info spi_board_info[] __initdata = {
+{
+	.modalias	= "spidev",
+	.platform_data	= NULL,
+	.mode		= SPI_MODE_0,
+	.max_speed_hz	= 1040000,
+	.bus_num	= 0,
+	.chip_select	= 0,
+},
+{
+	.modalias	= "max1111",
+	.platform_data	= NULL,
+	.mode		= SPI_MODE_0,
+	.max_speed_hz	= 1040000,
+	.bus_num	= 0,
+	.chip_select	= 1,
+},
+{
+	.modalias	= "spidev",
+	.platform_data	= NULL,
+	.mode		= SPI_MODE_0,
+	.max_speed_hz	= 17000000,
+	.bus_num	= 0,
+	.chip_select	= 2,
+},
+{
+	.modalias	= "max1111",
+	.platform_data	= NULL,
+	.mode		= SPI_MODE_0,
+	.max_speed_hz	= 200000,
+	.bus_num	= 0,
+	.chip_select	= 3,
+},
+};
+
 static int __init stk5_spi_register(void)
 {
 	int ret;
+	printk(KERN_INFO "%s: -----------------------------------------\n", __FUNCTION__);
 
+
+	printk(KERN_INFO "Configuring CSPI1 pads\n");
 	ret = mxc_iomux_v3_setup_multiple_pads(stk5_cspi1_pads,
 					ARRAY_SIZE(stk5_cspi1_pads));
 	if (ret) {
-		printk(KERN_ERR "Failed to configure CSPI1 pads\n");
+		printk(KERN_ERR "Failed to configure CSPI1 pads %d\n",ret);
 		return ret;
 	}
-	ret = mxc_register_device(&mxc_spi_device0, &stk5_spi1_data);
-	DBG(0, "%s: mxc_register_device() returned: %d\n", __FUNCTION__, ret);
+	ret = mxc_register_device(&mxc_spi_device0, &mxcspi1_data);
+	printk(KERN_INFO "%s: mxc_register_device() returned: %d\n", __FUNCTION__, ret);
+	if (ret) {
+				printk(KERN_ERR "Failed to register devices %d\n",ret);
+				return ret;
+			}
+	printk(KERN_INFO "%s: registering %d SPI devices\n",__FUNCTION__,ARRAY_SIZE(spi_board_info));
+	ret = spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
+	if (ret) {
+		printk(KERN_WARNING "%s: error registering SPI devices: %d\n",
+			   __FUNCTION__, ret);
+	}
 	return ret;
 }
+
+
+
+
 device_initcall(stk5_spi_register);
 #endif // defined(CONFIG_SPI_MXC) || defined(CONFIG_SPI_MXC_MODULE)
+
+static struct pad_desc stk5_pwm_pads[] = {
+	MX25_PAD_PWM__PWM,
+	MX25_PAD_GPIO_C__PWM4,
+	MX25_PAD_GPIO_A__PWM2,
+};
+
+
+static struct elliptec_pwm_platform_data elliptec_info0 = {
+	.name="herbert",
+};
+
+static struct elliptec_pwm_platform_data elliptec_info1 = {
+	.name="lisa",
+};
+
+static struct elliptec_pwm_platform_data elliptec_info2 = {
+	.name="alfons",
+};
+
+static struct elliptec_pwm_platform_data elliptec_info3 = {
+	.name="paul",
+};
+
+
+
+static int __init stk5_pwm_register(void)
+{
+	int ret;
+	printk(KERN_INFO "%s: -----------------------------------------\n", __FUNCTION__);
+
+
+	printk(KERN_INFO "Configuring PWM pads\n");
+	ret = mxc_iomux_v3_setup_multiple_pads(stk5_pwm_pads,
+					ARRAY_SIZE(stk5_pwm_pads));
+	if (ret) {
+		printk(KERN_ERR "Failed to configure PWM pads %d\n",ret);
+		return ret;
+	}
+	ret = mxc_register_device(&mxc_pwm_device0, &elliptec_info0);
+	printk(KERN_INFO "%s: mxc_register_device() returned: %d\n", __FUNCTION__, ret);
+	if (ret) {
+			printk(KERN_ERR "Failed to register devices %d\n",ret);
+			return ret;
+		}
+	ret = mxc_register_device(&mxc_pwm_device3, &elliptec_info3);
+	printk(KERN_INFO "%s: mxc_register_device() returned: %d\n", __FUNCTION__, ret);
+	if (ret) {
+			printk(KERN_ERR "Failed to register devices %d\n",ret);
+			return ret;
+		}
+
+	return ret;
+
+}
+device_initcall(stk5_pwm_register);
 
 #if defined(CONFIG_AC97_BUS) || defined(CONFIG_AC97_BUS_MODULE)
 static u64 stk5_dma_mask = ~0UL;
@@ -1152,6 +1307,100 @@ static struct platform_device ac97_device = {
 };
 #endif
 
+
+static struct i2c_board_info pcm037_i2c_0_devices[] = {
+	{
+		I2C_BOARD_INFO("mt9m001", 0x5d),
+	},
+};
+
+static unsigned long stk5_camera_query_bus_param(struct soc_camera_link *icl)
+{
+	return SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_10;
+			/*SOCAM_PCLK_SAMPLE_FALLING | SOCAM_PCLK_SAMPLE_RISING |
+			SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW |
+			SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |
+			SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW |
+			SOCAM_MASTER;*/
+}
+
+static int stk5_set_bus_param(struct soc_camera_link *icl,
+				 unsigned long flags)
+{
+	return  0;
+}
+static struct soc_camera_link iclink = {
+	.bus_id		= 0,		/* Must match with the camera ID */
+	.power		= NULL,
+	.board_info	= &pcm037_i2c_0_devices[0],
+	.query_bus_param = stk5_camera_query_bus_param,
+	.set_bus_param = stk5_set_bus_param,
+	.i2c_adapter_id	= 0,
+	.module_name	= "mt9m001",
+};
+
+
+static struct platform_device pcm037_camera = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &iclink,
+	},
+};
+
+struct mx25_camera_pdata camera_pdata = {
+	.flags		= MX25_CAMERA_DATA_HIGH | MX25_CAMERA_PCLK_RISING,
+	MX25_CAMERA_DATAWIDTH_8 | MX25_CAMERA_DATAWIDTH_10,
+	.mclk_10khz	= 1000,
+};
+
+static struct imxi2c_platform_data pcm037_i2c_0_data = {
+	.bitrate = 20000,
+};
+
+static struct pad_desc stk5_camera_pads[] = {
+		MX25_PAD_LD0__CSI_D0,
+		MX25_PAD_LD1__CSI_D1,
+		MX25_PAD_CSI_D2__CSI_D2,
+		MX25_PAD_CSI_D3__CSI_D3,
+		MX25_PAD_CSI_D4__CSI_D4,
+		MX25_PAD_CSI_D5__CSI_D5,
+		MX25_PAD_CSI_D6__CSI_D6,
+		MX25_PAD_CSI_D7__CSI_D7,
+		MX25_PAD_CSI_D8__CSI_D8,
+		MX25_PAD_CSI_D9__CSI_D9,
+		MX25_PAD_CSI_MCLK__CSI_MCLK,
+		MX25_PAD_CSI_VSYNC__CSI_VSYNC,
+		MX25_PAD_CSI_HSYNC__CSI_HSYNC,
+		MX25_PAD_CSI_PIXCLK__CSI_PIXCLK,
+};
+
+static int __init stk5_camera_register(void)
+{
+	int ret;
+	printk(KERN_INFO "%s: -----------------------------------------\n", __FUNCTION__);
+
+
+	printk(KERN_INFO "Configuring CSI pads\n");
+	ret = mxc_iomux_v3_setup_multiple_pads(stk5_camera_pads,
+					ARRAY_SIZE(stk5_camera_pads));
+	if (ret) {
+		printk(KERN_ERR "Failed to configure CSI pads %d\n",ret);
+		return ret;
+	}
+	ret = mxc_register_device(&mx25_csi_device, &camera_pdata);
+	printk(KERN_INFO "%s: mxc_register_device() returned: %d\n", __FUNCTION__, ret);
+	if (ret) {
+			printk(KERN_ERR "Failed to register devices %d\n",ret);
+			return ret;
+		}
+	printk(KERN_INFO "registerint i2c\n");
+
+	return ret;
+
+}
+device_initcall(stk5_camera_register);
+
 static struct platform_dev_list {
 	struct platform_device *pdev;
 	int flag;
@@ -1168,6 +1417,8 @@ static struct platform_dev_list {
 #if defined(CONFIG_MMC_SDHCI_MXC) || defined(CONFIG_MMC_SDHCI_MXC_MODULE)
 	{ .pdev = &stk5_sdhc1_device, .flag = 1, },
 #endif
+//	{ .pdev = &stk5_ledpwm_device, .flag = 1, },
+	{ .pdev = &pcm037_camera, .flag = 1,},
 };
 #define STK5_NUM_DEVICES		ARRAY_SIZE(stk5_devices)
 
@@ -1191,6 +1442,7 @@ static __init int karo_stk5_board_init(void)
 		printk(KERN_WARNING "%s: karo_stk5_fb_register() failed: %d\n",
 			__FUNCTION__, ret);
 	}
+	//mxc_register_device(&mxc_i2c_device0, &pcm037_i2c_0_data);
 
 	for (i = 0; i < STK5_NUM_DEVICES; i++) {
 		if (stk5_devices[i].pdev == NULL) continue;
@@ -1200,7 +1452,7 @@ static __init int karo_stk5_board_init(void)
 				stk5_devices[i].pdev->name);
 			continue;
 		}
-		DBG(0, "%s: Registering platform device[%d] @ %p dev %p: %s\n",
+		printk(KERN_INFO "%s: Registering platform device[%d] @ %p dev %p: %s\n",
 			__FUNCTION__, i, stk5_devices[i].pdev, &stk5_devices[i].pdev->dev,
 			stk5_devices[i].pdev->name);
 		ret = platform_device_register(stk5_devices[i].pdev);
@@ -1209,6 +1461,7 @@ static __init int karo_stk5_board_init(void)
 				__FUNCTION__, i, stk5_devices[i].pdev->name, ret);
 		}
 	}
+
 	DBG(0, "%s: Done\n", __FUNCTION__);
 	return 0;
 }

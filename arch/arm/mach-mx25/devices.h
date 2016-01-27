@@ -20,3 +20,5 @@ extern struct platform_device mxc_i2c_device2;
 extern struct platform_device mx25_fb_device;
 extern struct platform_device mx25_rtc_device;
 extern struct platform_device mx25_tsc_device;
+extern struct platform_device mx25_csi_device;
+extern struct platform_device mxc_gpt_device1;

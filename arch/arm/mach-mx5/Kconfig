@@ -1,0 +1,120 @@
+if ARCH_MX5
+
+config ARCH_MX51
+	bool
+ 	default y
+	select CPU_V7
+	select USB_ARCH_HAS_EHCI
+	select MXC_TZIC
+
+comment "MX5 platforms:"
+
+config MACH_TX51
+	bool "Support Ka-Ro electronics TX51 module"
+	select ARCH_MX51
+	help
+	  Include support for Ka-Ro electronics GmbH TX51 module.
+
+config KARO_DEBUG
+	bool "Enable Ka-Ro specific debug messages"
+	depends on MACH_TX51
+	default y
+
+choice
+	prompt "Baseboard"
+	depends on MACH_TX51
+	default MACH_TX51_BASEBOARD_STK5
+
+config MACH_TX51_BASEBOARD_STK5
+	bool "Ka-Ro STK5 development board"
+	select ARCH_MXC_HAS_USBH1
+	select ARCH_MXC_HAS_USBOTG
+	help
+	  This adds board specific devices that can be found on Ka-Ro's
+	  STK5 evaluation board.
+
+endchoice
+
+config MACH_TX51_CUSTOM
+	bool "Custom platform initialisation"
+	depends on MACH_TX51_BASEBOARD_STK5
+	help
+	  Enable this option to add custom initialisation code found
+	  in arch/arm/mach-mx5/stk5-custom.c
+
+menu "MX5 Options"
+	depends on ARCH_MX5
+
+config FORCE_MAX_ZONEORDER
+	int "MAX_ORDER"
+	default "13"
+
+config MXC_SDMA_API
+        bool "Use SDMA API"
+        default y
+        help
+           This selects the Freescale MXC SDMA API.
+           If unsure, say N.
+
+config ARCH_MXC_HAS_NFC_V3
+        bool "MXC NFC Hardware Version 3"
+        depends on ARCH_MX51
+        default y
+        help
+           This selects the Freescale MXC Nand Flash Controller Hardware Version 3
+           If unsure, say N.
+
+config ARCH_MXC_HAS_NFC_V3_2
+        bool "MXC NFC Hardware Version 3.2"
+        depends on ARCH_MXC_HAS_NFC_V3
+        default y
+        help
+           This selects the Freescale MXC Nand Flash Controller Hardware Version 3.1
+           If unsure, say N.
+
+menu "SDMA options"
+        depends on MXC_SDMA_API
+
+config SDMA_IRAM
+        bool "Use Internal RAM for SDMA transfer"
+        default n
+	help
+           Support Internal RAM as SDMA buffer or control structures
+
+config SDMA_IRAM_SIZE
+        hex "Reserved bytes of IRAM for SDMA (0x800-0x1000)"
+        range 0x800 0x1000
+        depends on SDMA_IRAM
+        default "0x1000"
+        help
+           Set the size of IRAM for SDMA. It must be a multiple of 512bytes.
+endmenu
+
+menu "Device options"
+
+config I2C_IMX_SELECT1
+	bool "Enable I2C1 module"
+	default y
+	depends on I2C_IMX
+	help
+	  Enable MX51 I2C1 module.
+
+config I2C_IMX_SELECT2
+	bool "Enable I2C2 module"
+	default n
+	depends on I2C_IMX
+	help
+	  Enable MX51 I2C2 module.
+
+config I2C_IMX_SELECT3
+	bool "Enable I2C3 module"
+	default n
+	depends on I2C_IMX
+	help
+	  Enable MX51 I2C3 module.
+
+endmenu
+
+endmenu
+
+endif

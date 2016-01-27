@@ -107,6 +107,8 @@ static unsigned long get_rate_ipg(struct clk *clk)
 	return clk_get_rate(clk->parent) >> 1;
 }
 
+
+
 static unsigned long get_rate_per(struct clk *clk)
 {
 	int per = clk->id;
@@ -307,6 +309,7 @@ static struct clk ipg_clk = {
 		.set_rate	= sr,			\
 		.enable		= clk_cgcr_enable,	\
 		.disable	= clk_cgcr_disable,	\
+		.parent		= &ipg_clk, \
 	}
 
 #define DEFINE_CLOCK(name, i, er, es, gr, sr, s, p)	\
@@ -359,6 +362,9 @@ DEFINE_CLOCK1(per_clk15, 15, MX25_CCM_BASE + CCM_CGCR0, 15, per, NULL, &ahb_clk)
 
 DEFINE_CLOCK(gpt1_clk1,   0, MX25_CCM_BASE + CCM_CGCR1, 19, NULL, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(gpt1_clk,    0, MX25_CCM_BASE + CCM_CGCR0,  5, NULL, NULL, &gpt1_clk1, &per_clk5);
+/* ARNOFIX */
+DEFINE_CLOCK(gpt2_clk1,   0, MX25_CCM_BASE + CCM_CGCR1, 20, NULL, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(gpt2_clk,    0, MX25_CCM_BASE + CCM_CGCR0,  5, NULL, NULL, &gpt2_clk1, &per_clk5);
 
 DEFINE_CLOCK(wdog_clk,    0, MX25_CCM_BASE + CCM_CGCR2, 19, NULL, NULL, NULL, &ipg_clk);
 
@@ -399,6 +405,10 @@ DEFINE_CLOCK(lcdc_clk2,   0, MX25_CCM_BASE + CCM_CGCR0, 24, NULL, NULL, NULL, &a
 DEFINE_CLOCK(lcdc_clk1,   0, MX25_CCM_BASE + CCM_CGCR1, 29, NULL, NULL, &lcdc_clk2, &ipg_clk);
 DEFINE_CLOCK(lcdc_clk,    0, MX25_CCM_BASE + CCM_CGCR1,  7, NULL, set_rate_parent, &lcdc_clk1, &per_clk7);
 
+DEFINE_CLOCK(csi_clk2,   0, MX25_CCM_BASE + CCM_CGCR0, 18, NULL, NULL, NULL, &upll_clk);
+DEFINE_CLOCK(csi_clk1,   0, MX25_CCM_BASE + CCM_CGCR1,  4, NULL, NULL, &csi_clk2, &ipg_clk);
+DEFINE_CLOCK(csi_clk,    0, MX25_CCM_BASE + CCM_CGCR0,  0, NULL, NULL, &csi_clk1, &per_clk0);
+
 DEFINE_CLOCK(can1_clk,    0, MX25_CCM_BASE + CCM_CGCR1,  2, NULL, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(can2_clk,    0, MX25_CCM_BASE + CCM_CGCR1,  3, NULL, NULL, NULL, &ipg_clk);
 
@@ -431,6 +441,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
 	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
 	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
+	_REGISTER_CLOCK("mxc_gpt.1", NULL, gpt2_clk)
 	_REGISTER_CLOCK("mxc_pwm.0", NULL, pwm1_clk)
 	_REGISTER_CLOCK("mxc_pwm.1", NULL, pwm2_clk)
 	_REGISTER_CLOCK("mxc_pwm.2", NULL, pwm3_clk)
@@ -441,6 +452,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c_clk)
 	_REGISTER_CLOCK("imx-i2c.2", NULL, i2c_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	_REGISTER_CLOCK("mx25-camera.0", NULL, csi_clk)
 	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk)
 	_REGISTER_CLOCK("mxc-flexcan.0", NULL, can1_clk)

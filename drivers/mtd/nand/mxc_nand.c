@@ -640,16 +640,19 @@ static int mxc_nand_read_page_raw_syndrome(struct mtd_info *mtd, struct nand_chi
 	chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, host->page_addr);
 
 	for (n = 0, steps = chip->ecc.steps; steps > 0; n++, steps--) {
+		/* set col_addr to n'th slice of data area */
 		host->col_addr = n * eccsize;
 		chip->read_buf(mtd, buf, eccsize);
 		buf += eccsize;
 
+		/* set col_addr to n'th slice of OOB area */
 		host->col_addr = mtd->writesize + n * eccpitch;
 		if (chip->ecc.prepad) {
 			chip->read_buf(mtd, oob, chip->ecc.prepad);
 			oob += chip->ecc.prepad;
 		}
 
+		/* read ECC syndrome */
 		chip->read_buf(mtd, oob, eccbytes);
 		oob += eccbytes;
 
@@ -662,7 +665,7 @@ static int mxc_nand_read_page_raw_syndrome(struct mtd_info *mtd, struct nand_chi
 	size = mtd->oobsize - (oob - chip->oob_poi);
 	if (size)
 		chip->read_buf(mtd, oob, size);
-	_mxc_nand_enable_hwecc(mtd, 0);
+	_mxc_nand_enable_hwecc(mtd, 1);
 
 	return 0;
 }
@@ -686,18 +689,15 @@ static int mxc_nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *c
 		int stat;
 
 		host->col_addr = n * eccsize;
-
 		chip->read_buf(mtd, p, eccsize);
 
 		host->col_addr = mtd->writesize + n * eccpitch;
-
 		if (chip->ecc.prepad) {
 			chip->read_buf(mtd, oob, chip->ecc.prepad);
 			oob += chip->ecc.prepad;
 		}
 
 		stat = chip->ecc.correct(mtd, p, oob, NULL);
-
 		if (stat < 0)
 			mtd->ecc_stats.failed++;
 		else
@@ -1097,25 +1097,25 @@ static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 			switch (col & 3) {
 			case 0:
 				if (n) {
-					buf[i++] = (uint8_t) (data);
+					buf[i++] = data;
 					n--;
 					col++;
 				}
 			case 1:
 				if (n) {
-					buf[i++] = (uint8_t) (data >> 8);
+					buf[i++] = data >> 8;
 					n--;
 					col++;
 				}
 			case 2:
 				if (n) {
-					buf[i++] = (uint8_t) (data >> 16);
+					buf[i++] = data >> 16;
 					n--;
 					col++;
 				}
 			case 3:
 				if (n) {
-					buf[i++] = (uint8_t) (data >> 24);
+					buf[i++] = data >> 24;
 					n--;
 					col++;
 				}
@@ -1493,10 +1493,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 
 	/* this is required before completing the scan */
 	host->pagesize_2k = (mtd->writesize == 2048);
-	tmp = nfc_read_reg(host->regs, NFC_CONFIG1);
-	if (cpu_is_mx25())
-		tmp |= NFC_ONE_CYCLE;
 
+	tmp = nfc_read_reg(host->regs, NFC_CONFIG1);
 	tmp &= ~(3 << 9); /* clear PPB mask */
 	/* set PPB (pages per block) */
 	tmp |= (ffs(mtd->erasesize / mtd->writesize) - 6) << 9;
@@ -1590,7 +1588,7 @@ eclk:
 	return err;
 }
 
-static int __devexit mxcnd_remove(struct platform_device *pdev)
+static int __exit mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 	struct resource *res;

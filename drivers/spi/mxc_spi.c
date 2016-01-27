@@ -35,6 +35,7 @@
 #include <asm/io.h>
 #include <mach/gpio.h>
 #include <mach/imx_spi.h>
+#include <mach/clock.h>
 
 #ifdef CONFIG_SPI_MXC_TEST_LOOPBACK
 struct spi_chip_info {
@@ -212,6 +213,7 @@ static unsigned int spi_find_baudrate(struct mxc_spi *master_data,
 	unsigned int divisor;
 	unsigned int shift = 0;
 
+	printk (KERN_INFO "%s: baudrate %d\n",__FUNCTION__,baud);
 	/* Calculate required divisor (rounded) */
 	divisor = (master_data->spi_ipg_clk + baud - 1) / baud;
 #ifdef CONFIG_ARCH_MX2
@@ -227,6 +229,7 @@ static unsigned int spi_find_baudrate(struct mxc_spi *master_data,
 	if (shift > MXC_CSPICTRL_MAXDATRATE)
 		shift = MXC_CSPICTRL_MAXDATRATE;
 
+	printk (KERN_INFO "%s: diviso %d shift %d result %d \n",__FUNCTION__,divisor,shift,shift << MXC_CSPICTRL_DATASHIFT);
 	return shift << MXC_CSPICTRL_DATASHIFT;
 }
 
@@ -259,6 +262,7 @@ void mxc_spi_chipselect(struct spi_device *spi, int is_active)
 	unsigned int ctrl_mask;
 	unsigned int xfer_len;
 
+	printk(KERN_INFO "%s: is_active %d cs_control %d\n",__FUNCTION__,is_active,(spi->cs_control)?1:0);
 	if (is_active == BITBANG_CS_INACTIVE) {
 		if (spi->cs_control) {
 			spi->cs_control(is_active);
@@ -384,10 +388,31 @@ int mxc_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
+int mxc_spi_setuptransfer(struct spi_device *spi, struct spi_transfer *t)
+{
+	if ((t->speed_hz < 0)
+		|| (t->speed_hz > spi->max_speed_hz)) {
+		dev_err(&spi->dev, "Cannot set required SPI clock speed."
+				" Requested: %uHz, possible: %luHz\n",
+				t->speed_hz,spi->max_speed_hz);
+		return -EINVAL;
+	}
+
+	if (!t->bits_per_word)
+		t->bits_per_word = 8;
+
+	pr_debug("%s: mode %d, %u bpw, %d hz\n", __FUNCTION__,
+		 spi->mode, t->bits_per_word, t->speed_hz);
+
+
+	return 0;
+}
+
 int mxc_spi_transfer(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct mxc_spi *master_drv_data = NULL;
 
+	printk (KERN_INFO "%s: \n",__FUNCTION__);
 	/* Get the master controller driver data from spi device's master */
 
 	master_drv_data = spi_master_get_devdata(spi->master);
@@ -415,7 +440,7 @@ int mxc_spi_transfer(struct spi_device *spi, struct spi_transfer *t)
 	/* Disable the Rx Interrupts */
 
 	spi_disable_interrupt(master_drv_data, MXC_CSPIINT_RREN);
-
+	printk (KERN_INFO "%s: t->len=%d  transfercount %d\n",__FUNCTION__,t->len,master_drv_data->transfer.count);
 	return t->len - master_drv_data->transfer.count;
 }
 
@@ -472,7 +497,7 @@ static int mxc_spi_probe(struct platform_device *pdev)
 	master_drv_data->mxc_bitbang.txrx_bufs = mxc_spi_transfer;
 	master_drv_data->mxc_bitbang.master->setup = mxc_spi_setup;
 	master_drv_data->mxc_bitbang.master->cleanup = mxc_spi_cleanup;
-
+	master_drv_data->mxc_bitbang.setup_transfer = mxc_spi_setuptransfer;
 	/* Initialize the completion object */
 
 	init_completion(&master_drv_data->xfer_done);
@@ -549,7 +574,7 @@ static int mxc_spi_probe(struct platform_device *pdev)
 
 	/* Enable the CSPI Clock, CSPI Module, set as a master */
 
-	master_drv_data->clk = clk_get(&pdev->dev, "cspi_clk");
+	master_drv_data->clk = clk_get(&pdev->dev, "cspi_clk"); /* "cspi_clk" */
 	if (IS_ERR(master_drv_data->clk)) {
 		ret = PTR_ERR(master_drv_data->clk);
 		goto err2a;
@@ -560,7 +585,8 @@ static int mxc_spi_probe(struct platform_device *pdev)
 		goto err3;
 	}
 	master_drv_data->spi_ipg_clk = clk_get_rate(master_drv_data->clk);
-
+	printk(KERN_INFO "%s: clockinfo: clk @ %x, clk id %d %s, has get_rate %d\n",__FUNCTION__,(int) &master_drv_data->clk,master_drv_data->clk->id,dev_name(&pdev->dev),(master_drv_data->clk->get_rate!=NULL));
+	printk(KERN_INFO "%s: got clk %lu\n",__FUNCTION__,master_drv_data->spi_ipg_clk);
 	writel(0x00008000, master_drv_data->base + MXC_CSPICTRL); /* reset default */
 	writel(MXC_CSPICTRL_ENABLE | MXC_CSPICTRL_MASTER,
 		     master_drv_data->base + MXC_CSPICTRL);

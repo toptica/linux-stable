@@ -323,7 +323,6 @@ static void bitbang_work(struct work_struct *work)
 				status = -EINVAL;
 				break;
 			}
-
 			/* transfer data.  the lower level code handles any
 			 * new dma mappings it needs. our caller always gave
 			 * us dma-safe buffers.

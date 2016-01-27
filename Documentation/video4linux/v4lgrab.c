@@ -119,7 +119,10 @@ int main(int argc, char ** argv)
     close(fd);
     exit(1);
   }
-
+  fprintf(stderr, "name:  %s\n",cap.name);
+  fprintf(stderr, "width: %d\n",cap.maxwidth);
+  fprintf(stderr, "height:%d\n",cap.maxheight);
+  fprintf(stderr, "type:  %d\n",cap.type);
   if (ioctl(fd, VIDIOCGWIN, &win) < 0) {
     perror("VIDIOCGWIN");
     close(fd);
@@ -132,7 +135,8 @@ int main(int argc, char ** argv)
     exit(1);
   }
 
-  if (cap.type & VID_TYPE_MONOCHROME) {
+  if (cap.type /*& VID_TYPE_MONOCHROME*/) {
+	fprintf(stderr, "monochrom \n");
     vpic.depth=8;
     vpic.palette=VIDEO_PALETTE_GREY;    /* 8bit grey */
     if(ioctl(fd, VIDIOCSPICT, &vpic) < 0) {

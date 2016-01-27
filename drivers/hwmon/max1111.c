@@ -59,7 +59,7 @@ static int max1111_read(struct device *dev, int channel)
 
 	v1 = data->rx_buf[0];
 	v2 = data->rx_buf[1];
-
+	printk(KERN_INFO "%s: result %x %x\n",__FUNCTION__,v1,v2);
 	if ((v1 & 0xc0) || (v2 & 0x3f))
 		return -EINVAL;
 

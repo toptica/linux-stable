@@ -73,7 +73,6 @@ static int led_pwm_probe(struct platform_device *pdev)
 					cur_led->pwm_id);
 			goto err;
 		}
-
 		led_dat->cdev.name = cur_led->name;
 		led_dat->cdev.default_trigger = cur_led->default_trigger;
 		led_dat->active_low = cur_led->active_low;
@@ -82,12 +81,12 @@ static int led_pwm_probe(struct platform_device *pdev)
 		led_dat->cdev.brightness_set = led_pwm_set;
 		led_dat->cdev.brightness = LED_OFF;
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
-
 		ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 		if (ret < 0) {
 			pwm_free(led_dat->pwm);
 			goto err;
 		}
+
 	}
 
 	platform_set_drvdata(pdev, leds_data);

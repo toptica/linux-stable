@@ -117,10 +117,11 @@ config SPI_GPIO
 	  speed with a custom version of this driver; see the source code.
 
 config SPI_IMX
-	tristate "Freescale iMX SPI controller"
-	depends on ARCH_MX1 && EXPERIMENTAL
+	tristate "Freescale i.MX SPI controllers"
+	depends on ARCH_MXC
+	select SPI_BITBANG
 	help
-	  This enables using the Freescale iMX SPI controller in master
+	  This enables using the Freescale i.MX SPI controllers in master
 	  mode.
 
 config SPI_LM70_LLP

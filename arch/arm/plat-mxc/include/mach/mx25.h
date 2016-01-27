@@ -3,6 +3,13 @@
 
 #define CSD0_BASE_ADDR			0x80000000
 
+#define CS0_BASE_ADDR           0xA0000000
+#define CS1_BASE_ADDR           0xA8000000
+#define CS2_BASE_ADDR           0xB0000000
+#define CS3_BASE_ADDR           0xB2000000
+#define CS4_BASE_ADDR           0xB4000000
+#define CS5_BASE_ADDR           0xB6000000
+
 #define MX25_AIPS1_BASE_ADDR		UL(0x43F00000)
 #define MX25_AIPS1_BASE_ADDR_VIRT	0xFC000000
 #define MX25_AIPS1_SIZE			SZ_1M
@@ -15,6 +22,9 @@
 #define MX25_SPBA0_BASE_ADDR		UL(0x50000000)
 #define MX25_SPBA0_BASE_ADDR_VIRT	0xFC100000
 #define MX25_SPBA0_SIZE			SZ_1M
+#define MX25_X_MEMC_BASE_ADDR        UL(0xB8002000)
+#define MX25_X_MEMC_BASE_ADDR_VIRT   0xFC320000
+#define MX25_X_MEMC_SIZE             SZ_4K
 
 #define MX25_IOMUXC_BASE_ADDR		(MX25_AIPS1_BASE_ADDR + 0xac000)
 
@@ -33,15 +43,30 @@
 	(((x) - MX25_AIPS2_BASE_ADDR) + MX25_AIPS2_BASE_ADDR_VIRT)
 #define MX25_AVIC_IO_ADDRESS(x)  \
 	(((x) - MX25_AVIC_BASE_ADDR) + MX25_AVIC_BASE_ADDR_VIRT)
+#define MX25_X_MEMC_IO_ADDRESS(x)  \
+	(((x) - MX25_X_MEMC_BASE_ADDR) + MX25_X_MEMC_BASE_ADDR_VIRT)
 
 #define __in_range(addr, name)	((addr) >= name##_BASE_ADDR && (addr) < name##_BASE_ADDR + name##_SIZE)
+
+/*
+ * NAND, SDRAM, WEIM, M3IF, EMI controllers
+ */
+#define ESDCTL_BASE_ADDR        (MX25_X_MEMC_BASE_ADDR + 0x1000)
+#define WEIM_BASE_ADDR          (MX25_X_MEMC_BASE_ADDR + 0x0000)
+#define M3IF_BASE_ADDR          (MX25_X_MEMC_BASE_ADDR + 0x3000)
+#define EMI_CTL_BASE_ADDR       (MX25_X_MEMC_BASE_ADDR + 0x4000)
 
 #define MX25_IO_ADDRESS(x)					\
 	(void __force __iomem *)				\
 	(__in_range(x, MX25_AIPS1) ? MX25_AIPS1_IO_ADDRESS(x) :	\
 	__in_range(x, MX25_AIPS2) ? MX25_AIPS2_IO_ADDRESS(x) :	\
 	__in_range(x, MX25_AVIC) ? MX25_AVIC_IO_ADDRESS(x) :	\
-	0)
+    __in_range(x, MX25_X_MEMC) ? MX25_X_MEMC_IO_ADDRESS(x) :     \
+    0xDEADBEEF)
+
+#define CSCR_U(n) (MX25_IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10)
+#define CSCR_L(n) (MX25_IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x4)
+#define CSCR_A(n) (MX25_IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x8)
 
 #define MAX_BASE_ADDR		(MX25_AIPS1_BASE_ADDR + 0x00004000)
 #define CLKCTL_BASE_ADDR	(MX25_AIPS1_BASE_ADDR + 0x00008000)

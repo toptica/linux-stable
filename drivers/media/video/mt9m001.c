@@ -114,7 +114,7 @@ static int mt9m001_init(struct soc_camera_device *icd)
 	struct i2c_client *client = to_i2c_client(icd->control);
 	struct soc_camera_link *icl = client->dev.platform_data;
 	int ret;
-
+	//printk(KERN_INFO "%s: probing chip\n",__FUNCTION__);
 	dev_dbg(icd->vdev->parent, "%s\n", __func__);
 
 	if (icl->power) {
@@ -127,21 +127,27 @@ static int mt9m001_init(struct soc_camera_device *icd)
 	}
 
 	/* The camera could have been already on, we reset it additionally */
-	if (icl->reset)
+	if (icl->reset) {
+		//printk(KERN_INFO "%s: resetting camera\n",__FUNCTION__);
 		ret = icl->reset(&client->dev);
+	}
 	else
 		ret = -ENODEV;
-
+	//printk(KERN_INFO "%s: result a%d\n",__FUNCTION__,ret);
 	if (ret < 0) {
 		/* Either no platform reset, or platform reset failed */
 		ret = reg_write(client, MT9M001_RESET, 1);
-		if (!ret)
+		//printk(KERN_INFO "%s: result b%d\n",__FUNCTION__,ret);
+		if (!ret) {
 			ret = reg_write(client, MT9M001_RESET, 0);
+			//printk(KERN_INFO "%s: result c%d\n",__FUNCTION__,ret);
+		}
 	}
+	//printk(KERN_INFO "%s: result d%d\n",__FUNCTION__,ret);
 	/* Disable chip, synchronous option update */
 	if (!ret)
 		ret = reg_write(client, MT9M001_OUTPUT_CONTROL, 0);
-
+	//printk(KERN_INFO "%s: finished, result %d\n",__FUNCTION__,ret);
 	return ret;
 }
 
@@ -162,7 +168,7 @@ static int mt9m001_release(struct soc_camera_device *icd)
 static int mt9m001_start_capture(struct soc_camera_device *icd)
 {
 	struct i2c_client *client = to_i2c_client(icd->control);
-
+	//printk(KERN_INFO "%s\n",__FUNCTION__);
 	/* Switch to master "normal" mode */
 	if (reg_write(client, MT9M001_OUTPUT_CONTROL, 2) < 0)
 		return -EIO;
@@ -172,7 +178,7 @@ static int mt9m001_start_capture(struct soc_camera_device *icd)
 static int mt9m001_stop_capture(struct soc_camera_device *icd)
 {
 	struct i2c_client *client = to_i2c_client(icd->control);
-
+	//printk(KERN_INFO "%s\n",__FUNCTION__);
 	/* Stop sensor readout */
 	if (reg_write(client, MT9M001_OUTPUT_CONTROL, 0) < 0)
 		return -EIO;
@@ -212,11 +218,15 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_HIGH | SOCAM_MASTER;
 
-	if (icl->query_bus_param)
+	if (icl->query_bus_param) {
+
+		//printk(KERN_INFO "icl    : 0x%04x",icl->query_bus_param(icl));
+		//printk(KERN_INFO "mt9m001: 0x%04x",flags);
 		flags |= icl->query_bus_param(icl) & SOCAM_DATAWIDTH_MASK;
+	}
 	else
 		flags |= SOCAM_DATAWIDTH_10;
-
+	//printk(KERN_INFO "flags : 0x%04x",flags);
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
@@ -415,7 +425,7 @@ static int mt9m001_get_control(struct soc_camera_device *icd, struct v4l2_contro
 	struct i2c_client *client = to_i2c_client(icd->control);
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
 	int data;
-
+	//printk(KERN_INFO "%s\n",__FUNCTION__);
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		data = reg_read(client, MT9M001_READ_OPTIONS2);
@@ -436,7 +446,7 @@ static int mt9m001_set_control(struct soc_camera_device *icd, struct v4l2_contro
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
 	const struct v4l2_queryctrl *qctrl;
 	int data;
-
+	//printk(KERN_INFO "%s\n",__FUNCTION__);
 	qctrl = soc_camera_find_qctrl(&mt9m001_ops, ctrl->id);
 
 	if (!qctrl)
@@ -533,7 +543,7 @@ static int mt9m001_video_probe(struct soc_camera_device *icd)
 	s32 data;
 	int ret;
 	unsigned long flags;
-
+	//printk(KERN_INFO "%s: probing video\n",__FUNCTION__);
 	/* We must have a parent by now. And it cannot be a wrong one.
 	 * So this entire test is completely redundant. */
 	if (!icd->dev.parent ||

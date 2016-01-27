@@ -215,11 +215,14 @@ static int __init leds_init(void)
 		return PTR_ERR(leds_class);
 	leds_class->suspend = led_suspend;
 	leds_class->resume = led_resume;
+
+
 	return 0;
 }
 
 static void __exit leds_exit(void)
 {
+
 	class_destroy(leds_class);
 }
 

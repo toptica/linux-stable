@@ -53,6 +53,7 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
+
 #include <mach/iomux.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
@@ -60,6 +61,9 @@
 #include <mach/mmc.h>
 #include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
+#include <mach/i2c.h>
+#include <linux/i2c/pca953x.h>
+#include <linux/i2c/at24.h>
 #if defined(CONFIG_TOUCHSCREEN_MXC_TSC) || defined(CONFIG_TOUCHSCREEN_MXC_TSC_MODULE)
 #include <mach/mxc_tsc.h>
 #endif
@@ -379,7 +383,8 @@ static struct platform_device fec_device = {
 #endif
 
 /* MTD NAND flash */
-#if defined(CONFIG_MTD_NAND_MXC) || defined(CONFIG_MTD_NAND_MXC_MODULE)
+//#if defined(CONFIG_MTD_NAND_MXC) || defined(CONFIG_MTD_NAND_MXC_MODULE)
+#if 1
 static struct pad_desc karo_tx25_nand_pads[] = {
 	MX25_PAD_NF_CE0__NF_CE0,
 	MX25_PAD_NFWE_B__NFWE_B,
@@ -460,8 +465,8 @@ static struct platform_device tx25_v4l2out_device = {
 };
 #endif
 
-#if 0
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+//#if 0
+#if 1 //defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static struct pad_desc mxc_i2c0_pins[] = {
 	MX25_PAD_I2C1_CLK__I2C1_CLK,
 	MX25_PAD_I2C1_DAT__I2C1_DAT,
@@ -487,17 +492,172 @@ static struct imxi2c_platform_data karo_tx25_i2c_0_data = {
 	.exit = karo_tx25_i2c_0_exit,
 };
 
+
+
+static struct led_info laserbox_7seg_leds[8] = {
+		{.name ="7sg_0", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_1", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_2", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_3", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_4", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_5", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_6", .default_trigger = NULL, .flags = 0,},
+		{.name ="7sg_7", .default_trigger = NULL, .flags = 0,},
+};
+
+static struct led_platform_data laserbox_led_7seg = {
+		.num_leds = 8,
+		.leds = laserbox_7seg_leds,
+};
+
+static struct led_info laserbox_front_leds[8] = {
+		{.name ="frt_0", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_1", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_2", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_3", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_4", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_5", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_6", .default_trigger = NULL, .flags = 0,},
+		{.name ="frt_7", .default_trigger = NULL, .flags = 0,},
+};
+
+static struct led_platform_data laserbox_led_front = {
+		.num_leds = 8,
+		.leds = laserbox_front_leds,
+};
+
+static struct led_info laserbox_extout_leds[8] =  {
+		{.name ="int_0", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_1", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_2", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_3", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_4", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_5", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_6", .default_trigger = NULL, .flags = 0,},
+		{.name ="int_7", .default_trigger = NULL, .flags = 0,},
+};
+
+static struct led_platform_data laserbox_led_extout = {
+		.num_leds = 8,
+		.leds = laserbox_extout_leds,
+};
+
+static struct pca953x_platform_data laserbox_gpio_front = {
+         .gpio_base = 128,
+};
+
+static struct pca953x_platform_data laserbox_gpio_int1 = {
+        .gpio_base = 136,
+};
+
+static struct pca953x_platform_data laserbox_gpio_int2 = {
+        .gpio_base = 144,
+};
+
+static struct pca953x_platform_data laserbox_gpio_base = {
+        .gpio_base = 152,
+};
+
 static struct at24_platform_data karo_tx25_eeprom = {
-	.byte_len = 2048,
+	.byte_len = 8192,
 	.page_size = 32,
-	.flags = AT24_FLAG_ADDR16 | AT24_FLAG_TAKE8ADDR,
+	.flags = AT24_FLAG_ADDR16,
 };
 
 static struct i2c_board_info karo_i2c_0_boardinfo[] __initdata = {
-	{
-		I2C_BOARD_INFO("24c16", 0x50),
+	{/* main EEPROM with MLe config (CPU PCB) */
+		I2C_BOARD_INFO("at24", 0x50),
 		.platform_data = &karo_tx25_eeprom,
-		.type = "24c16",
+		.type = "24c64",
+	},
+	{/* EEPROM of camera PCB */
+		I2C_BOARD_INFO("at24", 0x51),
+		.platform_data = &karo_tx25_eeprom,
+		.type = "24c64",
+	},
+	{/* EEPROM of connection PCB */
+		I2C_BOARD_INFO("at24", 0x52),
+		.platform_data = &karo_tx25_eeprom,
+		.type = "24c64",
+	},
+	{/* EEPROM of "Steckplatine" */
+		I2C_BOARD_INFO("at24", 0x53),
+		.platform_data = &karo_tx25_eeprom,
+		.type = "24c64",
+	},
+	{/* EEPROM of base PCB */
+		I2C_BOARD_INFO("at24", 0x54),
+		.platform_data = &karo_tx25_eeprom,
+		.type = "24c64",
+	},
+/*
+	{  temperature sensors
+		I2C_BOARD_INFO("lm73", 0x48),
+	},
+	{
+		I2C_BOARD_INFO("lm73", 0x49),
+	},
+	{
+		I2C_BOARD_INFO("lm73", 0x4a),
+
+	},
+*/	{ /* temperature sensors */
+		I2C_BOARD_INFO("lm73", 0x4c),
+	},
+	{
+		I2C_BOARD_INFO("lm73", 0x4d),
+	},
+	{
+		I2C_BOARD_INFO("lm73", 0x4e),
+	},
+	{ /* digital potentiometers */
+		I2C_BOARD_INFO("isl90840", 0x28),
+	},
+	{
+		I2C_BOARD_INFO("isl90840", 0x29),
+	},
+	{
+		I2C_BOARD_INFO("isl90840", 0x2a),
+	},
+	{
+		I2C_BOARD_INFO("isl90840", 0x2b),
+	},
+	{ /* LEDs */
+		I2C_BOARD_INFO("pca9551", 0x63),
+		.platform_data = &laserbox_led_7seg,
+	},
+	{
+		I2C_BOARD_INFO("pca9551", 0x61),
+		.platform_data = &laserbox_led_front,
+	},
+	{
+		I2C_BOARD_INFO("pca9551", 0x60),
+		.platform_data = &laserbox_led_extout,
+	},
+	{ /* GPIOs */
+		I2C_BOARD_INFO("pca9557", 0x1b),
+		.platform_data = &laserbox_gpio_front,
+	},
+	{
+		I2C_BOARD_INFO("pca9557", 0x18),
+		.platform_data = &laserbox_gpio_int1,
+	},
+	{
+		I2C_BOARD_INFO("pca9557", 0x19),
+		.platform_data = &laserbox_gpio_int2,
+	},
+	{
+		I2C_BOARD_INFO("pca9557", 0x1f),
+		.platform_data = &laserbox_gpio_base,
+	},
+	{
+		I2C_BOARD_INFO("ads1112", 0x48),
+	},
+	{
+		I2C_BOARD_INFO("ads1112", 0x4a),
+	},
+	{
+		I2C_BOARD_INFO("mcp7941x", 0x6f),
 	},
 };
 
@@ -505,8 +665,8 @@ int __init karo_i2c_init(void)
 {
 	int ret;
 
-	DBG(0, "%s: Registering I2C bus 0\n", __FUNCTION__);
-	ret = mxc_register_device(&mx25_i2c_device0, &karo_tx25_i2c_0_data);
+	DBG(0, "%s: Registering I2C bus 0 (new)\n", __FUNCTION__);
+	ret = mxc_register_device(&mxc_i2c_device0, &karo_tx25_i2c_0_data);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register I2C device: %d\n", ret);
 		return ret;
@@ -520,7 +680,7 @@ int __init karo_i2c_init(void)
 }
 device_initcall(karo_i2c_init);
 #endif
-#endif
+//#endif
 
 #if defined(CONFIG_TOUCHSCREEN_MXC_TSC) || defined(CONFIG_TOUCHSCREEN_MXC_TSC_MODULE)
 static struct mxc_tsc_pdata karo_tx25_tsc_pdata = {
@@ -536,6 +696,7 @@ static struct mxc_tsc_pdata karo_tx25_tsc_pdata = {
 static int __init karo_tx25_tsc_register(void)
 {
 	int ret;
+	printk(KERN_INFO "registering TSC device ...\n");
 	ret = mxc_register_device(&mx25_tsc_device, &karo_tx25_tsc_pdata);
 	if (ret) {
 		printk(KERN_WARNING "Failed to register TSC device: %d\n", ret);
@@ -711,7 +872,9 @@ static __init void karo_tx25_board_init(void)
 			       __FUNCTION__, i, tx25_devices[i].pdev->name, ret);
 		}
 	}
+#if defined(CONFIG_RTC_MX25) || defined(CONFIG_RTC_MX25_MODULE)
 	device_init_wakeup(&mx25_rtc_device.dev, 1);
+#endif
 
 	DBG(0, "%s: Done\n", __FUNCTION__);
 }
@@ -725,10 +888,10 @@ static struct pad_desc karo_tx25_gpios[] __initdata = {
 	MX25_PAD_GPIO_F__GPIO_F,
 	MX25_PAD_CSI_D7__GPIO_1_6,
 	MX25_PAD_CSI_D8__GPIO_1_7,
-	MX25_PAD_CSI_MCLK__GPIO_1_8,
-	MX25_PAD_CSI_VSYNC__GPIO_1_9,
-	MX25_PAD_CSI_HSYNC__GPIO_1_10,
-	MX25_PAD_CSI_PIXCLK__GPIO_1_11,
+//	MX25_PAD_CSI_MCLK__GPIO_1_8,
+//	MX25_PAD_CSI_VSYNC__GPIO_1_9,
+//	MX25_PAD_CSI_HSYNC__GPIO_1_10,
+//	MX25_PAD_CSI_PIXCLK__GPIO_1_11,
 	MX25_PAD_I2C1_CLK__GPIO_1_12,
 	MX25_PAD_I2C1_DAT__GPIO_1_13,
 	MX25_PAD_CSPI1_MOSI__GPIO_1_14,
