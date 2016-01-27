@@ -29,55 +29,74 @@ struct laserbox_fpga {
         void __iomem *base;
         unsigned long size;
 };
-
+//TODO: Move this to platform data!
+#if 0
 #define nSTATUS   (GPIO_PORTC |  4)
 #define CONF_DONE (GPIO_PORTD | 29)
 #define nCONFIG   (GPIO_PORTB | 26)
 #define OE_FPGA   (GPIO_PORTA | 19)
+#endif
+
+#define nSTATUS   (GPIO_PORTB |  3)
+#define CONF_DONE (GPIO_PORTB | 19)
+#define nCONFIG   (GPIO_PORTB | 17)
+#define OE_FPGA   (GPIO_PORTB | 14)
 
 static inline int begin_config(void)
 {
         int ret, i = 0;
-
+	printk(KERN_ERR "1\n");
         ret = gpio_request(nSTATUS, "nSTATUS");
-        if (ret < 0)
+        if (ret < 0) {
                 goto end;
+	}
         ret = gpio_direction_input(nSTATUS);
 
+
+	printk(KERN_ERR "2\n");
         ret = gpio_request(CONF_DONE, "CONF_DONE");
-        if (ret < 0)
+        if (ret < 0) {
                 goto free_nSTATUS;
+	}
         ret = gpio_direction_input(CONF_DONE);
 
+	printk(KERN_ERR "3\n");
         ret = gpio_request(OE_FPGA, "OE_FPGA");
-        if (ret < 0)
+        if (ret < 0) {
                 goto free_nCONFIG;
+	}
         ret = gpio_direction_output(OE_FPGA, 0);
 
+	printk(KERN_ERR "4\n");
         ret = gpio_request(nCONFIG, "nCONFIG");
-        if (ret < 0)
+        if (ret < 0) {
                 goto free_CONF_DONE;
+	}
         ret = gpio_direction_output(nCONFIG, 0);
 
         udelay(1);
         
         /* error if CONF_DONE or nSTATUS is set */
+	printk(KERN_ERR "5\n");
         if (gpio_get_value(CONF_DONE) || gpio_get_value(nSTATUS)) {
                 ret = -ENODEV;
                 goto free_OE_FPGA;
         }
 
+	printk(KERN_ERR "6\n");
         /* enable config */
         gpio_set_value(nCONFIG, 1);
         /* nSTATUS should go high */
         while (!gpio_get_value(nSTATUS)) {
                 if (++i >= 100) {
+			printk(KERN_ERR "nSTATUS did not go high!\n");
                         ret = -ENODEV;
                         goto free_OE_FPGA;
                 }
                 udelay(1);
         }
 
+	printk(KERN_ERR "7\n");
         return 0;
 
 free_nCONFIG:
@@ -97,10 +116,14 @@ static inline int end_config(void)
         int ret = 0;
 
         /* CONF_DONE should be high */
-        if (gpio_get_value(CONF_DONE))
+        if (gpio_get_value(CONF_DONE)) {
+		printk(KERN_ERR"FPGA configuration successfull!\n");
                 gpio_set_value(OE_FPGA, 1); /* enable OE */
-        else
+	}
+        else {
+		printk(KERN_ERR "FPGA configuration failed!\n");
                 ret = -ENODEV;
+	}
 
         printk(KERN_INFO "CONF_DONE: %s\n", gpio_get_value(CONF_DONE)?"1":"0");
 
@@ -127,7 +150,7 @@ static int config_fpga(struct platform_device *pdev)
         u32 clk_conf;
 
         /* get firmware */
-        ret = request_firmware(&fw, "laserbox_fpga.fw", &pdev->dev);
+        ret = request_firmware(&fw, "mle_ii_fpgatest.fw", &pdev->dev);
         if (ret) {
                 dev_err(&pdev->dev, "error reading firmware file\n");
                 return ret;
@@ -312,7 +335,8 @@ static int laserbox_fpga_probe(struct platform_device *pdev)
                 return -ENOMEM;
         platform_set_drvdata(pdev, priv);
 
-        ret = config_fpga(pdev);
+        //ret = config_fpga(pdev);
+	ret = 0;
         if (ret)
                 goto err;
 

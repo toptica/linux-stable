@@ -16,7 +16,7 @@
  *  published by the Free Software Foundation.
  */
 #define DEBUG
-#define ADC_MULTIPLEX
+//#define ADC_MULTIPLEX
 
 #include <linux/module.h>
 #include <linux/err.h>

@@ -466,8 +466,8 @@ static int spi_imx_setup(struct spi_device *spi)
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	int gpio = spi_imx->chipselect[spi->chip_select];
 
-	pr_debug("%s: mode %d, %u bpw, %d hz\n", __func__,
-		 spi->mode, spi->bits_per_word, spi->max_speed_hz);
+	//printk(KERN_ERR"%s: mode %d, %u bpw, %d hz\n", __func__,
+	//	 spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
 	if (gpio >= 0)
 		gpio_direction_output(gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);

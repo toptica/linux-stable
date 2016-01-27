@@ -567,6 +567,8 @@ static int spidev_probe(struct spi_device *spi)
 	int			status;
 	unsigned long		minor;
 
+	printk(KERN_ERR"SPIDEV probe enter\n");
+
 	/* Allocate driver data */
 	spidev = kzalloc(sizeof(*spidev), GFP_KERNEL);
 	if (!spidev)
@@ -584,6 +586,9 @@ static int spidev_probe(struct spi_device *spi)
 	 */
 	mutex_lock(&device_list_lock);
 	minor = find_first_zero_bit(minors, N_SPI_MINORS);
+	
+	printk(KERN_ERR"SPIDEV new minor %d\n", minor);
+
 	if (minor < N_SPI_MINORS) {
 		struct device *dev;
 
@@ -601,6 +606,8 @@ static int spidev_probe(struct spi_device *spi)
 		list_add(&spidev->device_entry, &device_list);
 	}
 	mutex_unlock(&device_list_lock);
+
+	printk(KERN_ERR"SPIDEV probe exit\n");
 
 	if (status == 0)
 		spi_set_drvdata(spi, spidev);
@@ -635,6 +642,7 @@ static int spidev_remove(struct spi_device *spi)
 static struct spi_driver spidev_spi = {
 	.driver = {
 		.name =		"spidev",
+		.bus = 		&spi_bus_type,
 		.owner =	THIS_MODULE,
 	},
 	.probe =	spidev_probe,
@@ -673,6 +681,7 @@ static int __init spidev_init(void)
 		class_destroy(spidev_class);
 		unregister_chrdev(SPIDEV_MAJOR, spidev_spi.driver.name);
 	}
+	printk(KERN_ERR "spidev registered.\n");
 	return status;
 }
 module_init(spidev_init);

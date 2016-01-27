@@ -257,6 +257,8 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	struct pca953x_chip *chip;
 	int ret;
 
+	printk(KERN_ERR "%s\n", __FUNCTION__);
+
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
@@ -361,6 +363,8 @@ static struct i2c_driver pca953x_driver = {
 
 static int __init pca953x_init(void)
 {
+	printk(KERN_ERR "%s\n", __FUNCTION__);
+
 	return i2c_add_driver(&pca953x_driver);
 }
 /* register after i2c postcore initcall and before

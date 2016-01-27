@@ -303,7 +303,7 @@ static int __devinit pca955x_probe(struct i2c_client *client,
 					pdata->leds[i].default_trigger;
 		} else {
 			snprintf(pca955x[i].name, sizeof(pca955x[i].name),
-				 "pca955x:%d", i);
+				 "pca955x-%02x:%d", pca955x[i].client->addr, i);
 		}
 
 		spin_lock_init(&pca955x[i].lock);

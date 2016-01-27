@@ -272,8 +272,13 @@ static void mxc_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	void __iomem *reg = port->base + GPIO_DR;
 	u32 l;
 
+	//printk(KERN_ERR "%s\n", __FUNCTION__);
+	//printk(KERN_ERR "off=%0x%08x val=%d\n", offset, value);
+
 	l = (__raw_readl(reg) & (~(1 << offset))) | (value << offset);
 	__raw_writel(l, reg);
+
+	//printk(KERN_ERR"L=0x%08x\n", l);
 }
 
 static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -281,18 +286,25 @@ static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct mxc_gpio_port *port =
 		container_of(chip, struct mxc_gpio_port, chip);
 
+
+	//printk(KERN_ERR "%s\n", __FUNCTION__);
+
 	return (__raw_readl(port->base + GPIO_PSR) >> offset) & 1;
 }
 
 static int mxc_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	_set_gpio_direction(chip, offset, 0);
+
+	//printk(KERN_ERR "%s\n", __FUNCTION__);
 	return 0;
 }
 
 static int mxc_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
+
+	//printk(KERN_ERR "%s\n", __FUNCTION__);
 	mxc_gpio_set(chip, offset, value);
 	_set_gpio_direction(chip, offset, 1);
 	return 0;
@@ -307,6 +319,8 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 	gpio_table_size = cnt;
 
 	printk(KERN_INFO "MXC GPIO hardware\n");
+
+	printk(KERN_ERR "%s\n", __FUNCTION__);
 
 	for (i = 0; i < cnt; i++) {
 		/* disable the interrupt and clear the status */
