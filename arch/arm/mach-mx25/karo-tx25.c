@@ -839,13 +839,14 @@ static struct pad_desc karo_tx25_gpios[] __initdata = {
 	// System EEPROM read/write protection 
         MX25_PAD_SD1_DATA1__GPIO_2_26,  //E2_HOLD = gpio58 = PIN53
 
-	MX25_PAD_A24__GPIO_2_10,        // MEMS Enable GPIO = gpio 42
+	MX25_PAD_A24__GPIO_2_10,        // Fiber Switch
 
 	//ADC BUSY INPUT
 	MX25_PAD_HSYNC__GPIO_1_22,      // = gpio22
 };
 
 #define E2_HOLD_1_GPIO (1*32+26)
+#define FIBER_SWITCH_GPIO (1*32+10)
 
 static int __init karo_tx25_setup_gpios(void)
 {
@@ -866,6 +867,12 @@ static int __init karo_tx25_setup_gpios(void)
 
 	// Let user space have access to EEPROM
 	gpio_free(E2_HOLD_1_GPIO);
+
+	// set Fiber Switch PIN to output direction
+	gpio_request(FIBER_SWITCH_GPIO, "FIBER_SWITCH_GPIO");
+	gpio_direction_output(FIBER_SWITCH_GPIO, 0);
+	// Let user space have access to PIN
+	gpio_free(FIBER_SWITCH_GPIO);
 
 	return 0;
 }
