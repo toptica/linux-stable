@@ -91,33 +91,36 @@ static ssize_t show_value(struct device *dev, struct device_attribute *da,
 	res = ads1112_set(client, (u8) control);
 	if (res<0) return res;
 
-	switch (attr->index) {
+	switch (control & ADS1112_BITS_MASK) {
 	case ADS1112_BITS_16:
 		msleep(66);  /* 15 sps */
+		break;
 	case ADS1112_BITS_15:
 		msleep(33);  /* 30 sps */
+		break;
 	case ADS1112_BITS_14:
 		msleep(16);	 /* 60 sps */
+		break;
 	case ADS1112_BITS_12:
 		msleep(3);	 /* 240 sps */
+		break;
 	}
 
 	do {
 		msleep(1);
 		res = ads1112_read(client, &status, &value);
 		if (res<0) return res;
-
 	} while (status & ADS1112_NOTREADY);
 
 	switch (status & ADS1112_BITS_MASK) {
 	case ADS1112_BITS_16:
 		return sprintf(buf, "%d\n", (int) value);
 	case ADS1112_BITS_15:
-		return sprintf(buf, "%d\n", (int) 2*value);
+		return sprintf(buf, "%d\n", (int) (value << 1));
 	case ADS1112_BITS_14:
-		return sprintf(buf, "%d\n", (int) 4*value);
+		return sprintf(buf, "%d\n", (int) (value << 2));
 	case ADS1112_BITS_12:
-		return sprintf(buf, "%d\n", (int) 16*value);
+		return sprintf(buf, "%d\n", (int) (value << 4));
 	default:
 		return sprintf(buf, "%d unknown resolution\n", (int) value);
 	}
@@ -287,15 +290,23 @@ ads1112_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int status;
 	unsigned int control;
 
+	printk(KERN_INFO "%s: enter\n", __FUNCTION__);
+
 	control = ADS1112_SINGLE_CONV | ADS1112_GAIN_1 | ADS1112_BITS_16;
 	status = ads1112_set(client, (u8) control);
-	if (status < 0)
+	if (status < 0) {
+		printk(KERN_ERR "%s: ads1112_set failed with error %d\n", 
+			__FUNCTION__, status);
 		return status;
+	}
 
 	/* Register sysfs hooks */
 	status = sysfs_create_group(&client->dev.kobj, &ads1112_group);
-	if (status)
+	if (status < 0) {
+		printk(KERN_ERR "%s: sysfs_create failed with error %d\n", 
+			__FUNCTION__, status);
 		return status;
+	}
 
 
 	i2c_set_clientdata(client, (void *) control);
