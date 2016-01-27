@@ -159,6 +159,15 @@ config SENSORS_ADM9240
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm9240.
 
+config SENSORS_ADS1112
+	tristate "Texas Instrument ADS1112 ADC"
+	depends on I2C && EXPERIMENTAL
+	help
+	  Say y here to support Texas Instrument's ADS1112 16-bit ADC with variable gain.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ads1112.
+
 config SENSORS_ADT7462
 	tristate "Analog Devices ADT7462"
 	depends on I2C && EXPERIMENTAL
@@ -471,6 +480,20 @@ config SENSORS_LM70
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm70.
 
+config SENSORS_LM73
+	tristate "National Semiconductor LM73"
+	depends on I2C
+	help
+	  This driver supports driver model based binding through board
+	  specific I2C device tables.
+
+	  It also supports the "legacy" style of driver binding.  To use
+	  that with some chips which don't replicate LM75 quirks exactly,
+	  you may need the "force" module parameter.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm73.
+	  
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C

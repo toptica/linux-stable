@@ -287,6 +287,54 @@ struct platform_device mxc_spi_device2 = {
 	.resource = mxc_spi_resources2,
 };
 
+/* Camera stuff */
+
+static u64 csi_dmamask = DMA_BIT_MASK(32);
+
+static struct resource mx25_csi_resources[] = {
+	{
+	       .start = 0x53FF8000,
+	       .end = 0x53FFBFFF,
+	       .flags = IORESOURCE_MEM,
+	}, {
+	       .start = 17,
+	       .end = 17,
+	       .flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mx25_csi_device = {
+	.name = "mx25-camera", /* ARNOFIX */
+	.id = 0,
+	.dev = {
+			.coherent_dma_mask = DMA_BIT_MASK(32),
+			.dma_mask = &csi_dmamask,
+		},
+	.num_resources = ARRAY_SIZE(mx25_csi_resources),
+	.resource = mx25_csi_resources,
+};
+
+/* GPT-buzzer stuff */
+
+static struct resource mxc_gpt_resources1[] = {
+	{
+		.start	= 0x53f8c000,
+		.end	= 0x53f8ffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start   = 53,
+		.end     = 53,
+		.flags   = IORESOURCE_IRQ,
+	}
+};
+
+struct platform_device mxc_gpt_device1 = {
+	.name = "mxc_gpt",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxc_gpt_resources1),
+	.resource = mxc_gpt_resources1,
+};
+
 static struct resource mxc_pwm_resources0[] = {
 	{
 		.start	= 0x53fe0000,

@@ -61,4 +61,12 @@
 #endif /* CONSISTENT_DMA_SIZE */
 #endif /* CONFIG_ARCH_MX51 */
 
+#if defined(CONFIG_MX25_VIDEO)
+/*
+ * Increase size of DMA-consistent memory region.
+ * This is required for mx25 camera driver to capture at least two QXGA frames.
+ */
+#define CONSISTENT_DMA_SIZE SZ_8M
+#endif /* CONFIG_MX25_VIDEO */
+
 #endif /* __ASM_ARCH_MXC_MEMORY_H__ */

@@ -34,6 +34,13 @@ config MACH_TX25_BASEBOARD_STK5
 	help
 	  This adds board specific devices that can be found on Ka-Ro's
 	  STK5 evaluation board.
+	 
+config MACH_LASERBOX_MAINBOARD
+	bool "TOPTICA laserbox mainboard support"
+	depends on MACH_TX25
+	help
+	  This adds board specific devices that can be found on TOPTICA's
+	  laserbox mainboard
 
 endchoice
 

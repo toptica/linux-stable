@@ -175,6 +175,16 @@ config RTC_DRV_MAX6900
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max6900.
 
+config RTC_DRV_MCP7941X
+	tristate "Microchip MCP7941X"
+	help
+	  If you say yes here you will get support for the
+	  Microchip MCP7941X I2C RTC chip.
+	  EEPROM and SRAM are not supported, yet.
+	
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-mcp7941x.
+
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
 	help

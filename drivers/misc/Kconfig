@@ -233,6 +233,53 @@ config ISL29003
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29003.
 
+config ISL90840
+	tristate "Intersil ISL90840 4-channel digitally controlled potentiometer"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Intersil ISL90840
+	  4-channel potentiometer.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isl90840.
+	  
+config ELLIPTEC
+	tristate "i.MX25 PWM driver for Elliptec Motors "
+	depends on SYSFS
+	help
+	  If you say yes here you get support for the Elliptec motors
+	  
+	  This driver can also be built as a module.  If so, the module
+	  will be called elliptec.
+	  
+config LASERDRIVER
+	tristate "SPI driver for CXA2765ER laser driver ICs"
+	depends on SYSFS && SPI
+	help
+	  If you say yes here you get support for the CXA2765ER laser driver IC
+	  
+	  This driver can also be built as a module.  If so, the module
+	  will be called laserdriver.
+	  
+config MX25_GPT_BUZZER
+	tristate "i.MX25 GPT driver for a simple buzzer"
+	depends on SYSFS
+	help
+	  If you say yes here you get support for a buzzer connected to
+	  a GPT output
+	  
+	  This driver can also be built as a module.  If so, the module
+	  will be called mx25_gpt_buzzer.
+	  	 
+config LASERBOX_FPGA
+	tristate "FPGA support driver for laserbox"
+	depends on SYSFS
+	help
+	  If you say yes here you get support for the laserboxes FPGA
+	  
+	  This driver can also be built as a module.  If so, the module
+	  will be called laserbox_fpga.
+	  
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

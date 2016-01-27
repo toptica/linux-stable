@@ -784,6 +784,17 @@ config VIDEO_MX1
 	---help---
 	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
 
+config MX25_VIDEO
+	bool
+
+config VIDEO_MX25
+	tristate "i.MX25 CMOS Sensor Interface driver"
+	depends on VIDEO_DEV && ARCH_MX25 && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	select MX25_VIDEO
+	---help---
+	  This is a v4l2 driver for the i.MX25 CMOS Sensor Interface
+
 config MX3_VIDEO
 	bool
 

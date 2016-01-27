@@ -118,7 +118,7 @@ config SPI_GPIO
 
 config SPI_IMX
 	tristate "Freescale iMX SPI controller"
-	depends on ARCH_MXC && EXPERIMENTAL
+	depends on ARCH_MXC
 	select SPI_BITBANG
 	help
 	  This enables using the Freescale iMX SPI controller in master
