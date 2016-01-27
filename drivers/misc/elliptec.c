@@ -120,8 +120,6 @@ struct elliptec_pwm_data {
 		| MX25_PWMSR_CMP | MX25_PWMSR_FEW)
 
 #define DUTYMAX		10000		/* means 100% duty cylce */
-
-
 /* ------------------------------------------------------------------------- */
 
 int pwm_config_frequency(struct elliptec_pwm_data *pwm, int duty_10000, int frequency_hz);
@@ -313,6 +311,7 @@ static ssize_t elliptec_duration_store(struct device *dev,
 	dcr=1;
 	repeat=0;
 	wm=3;
+
 
 	if (pwm->state == ELLI_CONST) {
 		/* on plateau optimize for minimum IRQ use */
@@ -870,14 +869,14 @@ static struct platform_driver elliptec_pwm_driver = {
  * + 2 inputs for end switch detection
  */
 
-#define ELLI_IO_MOTOR_ENABLE	(GPIO_PORTA | 24)
-#define ELLI_IO_MOTOR_CH1		(GPIO_PORTB | 5)
-#define ELLI_IO_MOTOR_CH2		(GPIO_PORTD | 6)
-#define ELLI_IO_MOTOR_CH3		(GPIO_PORTD | 5)
-#define ELLI_IO_MOTOR_CH4		(GPIO_PORTB | 4)
-#define ELLI_IO_MOTOR_CH5		(GPIO_PORTB | 6)
-#define ELLI_IO_SWITCH1			(GPIO_PORTB | 7)
-#define ELLI_IO_SWITCH2			(GPIO_PORTB | 8)
+#define MOTOR_ADDRBIT_0	0x01
+#define MOTOR_ADDRBIT_1	0x02
+#define MOTOR_ADDRBIT_2	0x04
+
+#define ELLI_IO_MOTOR_ENABLE		(GPIO_PORTC | 16)
+#define ELLI_IO_MOTOR_A0		(GPIO_PORTB | 23)
+#define ELLI_IO_MOTOR_A1		(GPIO_PORTC | 19)
+#define ELLI_IO_MOTOR_A2		(GPIO_PORTC | 4)
 
 static int elli_current_motor = -1;
 static int elli_current_enabled = 0;
@@ -886,19 +885,13 @@ static int elli_current_enabled = 0;
  * other outputs follow
  */
 static int elli_outputs[] = {
-		ELLI_IO_MOTOR_CH1,
-		ELLI_IO_MOTOR_CH2,
-		ELLI_IO_MOTOR_CH3,
-		ELLI_IO_MOTOR_CH4,
-		ELLI_IO_MOTOR_CH5,
+		ELLI_IO_MOTOR_A0,
+		ELLI_IO_MOTOR_A1,
+		ELLI_IO_MOTOR_A2,
 		ELLI_IO_MOTOR_ENABLE,
 };
-#define ELLI_IO_MOTOR_NUMBER	5 /* number of motors */
+#define ELLI_IO_MOTOR_NUMBER	8 /* number of motors */
 
-static int elli_inputs[] = {
-		ELLI_IO_SWITCH1,
-		ELLI_IO_SWITCH2,
-};
 
 static int elliptec_gpio_config(void)
 {
@@ -918,32 +911,15 @@ static int elliptec_gpio_config(void)
 		}
 	}
 
-	for (i=0; i< ARRAY_SIZE(elli_inputs);i++) {
-		ret = gpio_request(elli_inputs[i], "Elliptec mux");
-		if (ret) {
-			printk(KERN_INFO "%s: Failed to request GPI %d for Elliptec: %d\n",
-				__FUNCTION__,i, ret);
-			goto err_request_in;
-		} else {
-			ret = gpio_direction_input(elli_inputs[i]);
-			if (ret) {
-				printk(KERN_INFO "%s: Failed to set GPI %d direction for Elliptec: %d\n",
-					__FUNCTION__,i, ret);
-			}
-		}
+	if (gpio_export((GPIO_PORTC | 4), 0) != 0) {
+		printk(KERN_INFO "%s: Failed to export GPIO3[4]\n", __FUNCTION__);
 	}
 	return ret;
+
 err_request_out:
 	for (j=0; j<i; j++)
 		gpio_free(elli_outputs[j]);
 	return ret;
-err_request_in:
-	for (j=0; j<i; j++)
-		gpio_free(elli_inputs[j]);
-	for (j=0; j<ARRAY_SIZE(elli_outputs); j++)
-			gpio_free(elli_outputs[j]);
-	return ret;
-
 }
 
 void elliptec_gpio_free(void)
@@ -951,9 +927,6 @@ void elliptec_gpio_free(void)
 	int i;
 	for (i=0; i< ARRAY_SIZE(elli_outputs);i++)
 		gpio_free(elli_outputs[i]);
-
-	for (i=0; i< ARRAY_SIZE(elli_inputs);i++)
-		gpio_free(elli_inputs[i]);
 }
 
 /* motor muxing attribute */
@@ -966,11 +939,39 @@ static ssize_t elliptec_mux_show(struct class *dev, char *buf)
 static ssize_t elliptec_mux_store(struct class *dev,
 		const char *buf, size_t size)
 {
-	int i;
+	//int i;
 	ssize_t ret = -EINVAL;
 	char *after;
-	long new_motor = simple_strtol(buf, &after, 10);
+	//long new_motor = simple_strtol(buf, &after, 10);
+	u8 motor_no;
 
+	motor_no = (u8) simple_strtol(buf, &after, 10);
+
+	if(motor_no < ELLI_IO_MOTOR_NUMBER) {
+		if(motor_no & MOTOR_ADDRBIT_0) {
+			gpio_set_value(ELLI_IO_MOTOR_A0, 1);
+		}
+		else {
+			gpio_set_value(ELLI_IO_MOTOR_A0, 0);
+		}
+		if(motor_no & MOTOR_ADDRBIT_1) {
+			gpio_set_value(ELLI_IO_MOTOR_A1, 1);
+		}
+		else {
+			gpio_set_value(ELLI_IO_MOTOR_A1, 0);
+		}
+		if(motor_no & MOTOR_ADDRBIT_2) {
+			gpio_set_value(ELLI_IO_MOTOR_A2, 1);
+		}
+		else {
+			gpio_set_value(ELLI_IO_MOTOR_A2, 0);
+		}
+
+		elli_current_motor = motor_no;
+
+		ret = size;
+	}
+/*
 	size_t count = after - buf;
 
 	if (*after && isspace(*after))
@@ -984,7 +985,10 @@ static ssize_t elliptec_mux_store(struct class *dev,
 			elli_current_motor = (new_motor>=0)?new_motor:-1;
 			ret = size;
 		}
-	}
+	}*/
+
+	
+
 	return ret;
 }
 
@@ -1018,7 +1022,9 @@ static ssize_t elliptec_enable_store(struct class *dev,
 /* end switch attribute */
 static ssize_t elliptec_switches_show(struct class *dev, char *buf)
 {
-	int ret = sprintf(buf,"%d %d\n",gpio_get_value(ELLI_IO_SWITCH1)?1:0,gpio_get_value(ELLI_IO_SWITCH2)?1:0);
+	//int ret = sprintf(buf,"%d %d\n",gpio_get_value(ELLI_IO_SWITCH1)?1:0,gpio_get_value(ELLI_IO_SWITCH2)?1:0);
+
+	int ret = sprintf(buf,"There are no end switches :-P\n");
 	return ret;
 }
 
