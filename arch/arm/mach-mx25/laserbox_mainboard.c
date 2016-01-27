@@ -65,7 +65,6 @@
 #include <mach/mmc.h>
 #include <mach/imx-uart.h>
 #include <mach/mxc_ehci.h>
-#include <mach/board-stk5.h>
 #include <mach/spi.h>
 #include <mach/sdhci.h>
 #include <mach/mx25_camera.h>
@@ -408,7 +407,7 @@ int tx25_usbh2_register(void)
 {
 	int ret;
 
-	ret = mxc_register_device(&mxc_usbh2, &tx25_usbh2_data);
+	ret = mxc_register_device(&mxc_usbh2_device, &tx25_usbh2_data);
 	return ret;
 }
 device_initcall(tx25_usbh2_register);
@@ -797,10 +796,6 @@ struct mx25_camera_pdata camera_pdata = {
 	.flags		= MX25_CAMERA_DATA_HIGH | MX25_CAMERA_PCLK_RISING |
 	MX25_CAMERA_DATAWIDTH_8 | MX25_CAMERA_DATAWIDTH_10,
 	.mclk_10khz	= 1000,
-};
-
-static struct imxi2c_platform_data laserbox_i2c_0_data = {
-	.bitrate = 20000,
 };
 
 #define MX25_PAD_LD7__CSI_D10		IOMUX_PAD(0x2dc, 0x0e4, 0x12, 0, 0, NO_PAD_CTRL)
@@ -1242,7 +1237,7 @@ int __init karo_i2c_init(void)
 	int ret;
 
 	DBG(0, "%s: Registering I2C bus 0 (new)\n", __FUNCTION__);
-	ret = mxc_register_device(&mxc_i2c_device0, &karo_tx25_i2c_0_data);
+	ret = mxc_register_device(&mx25_i2c1_device, &karo_tx25_i2c_0_data);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register I2C device: %d\n", ret);
 		return ret;
