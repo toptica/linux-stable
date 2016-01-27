@@ -8,5 +8,6 @@ obj-$(CONFIG_CAN_DEV)		+= can-dev.o
 can-dev-y			:= dev.o
 
 obj-$(CONFIG_CAN_SJA1000)	+= sja1000/
+obj-$(CONFIG_CAN_FLEXCAN)	+= flexcan.o
 
 ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG

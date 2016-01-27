@@ -18,8 +18,10 @@
  */
 
 #include <linux/module.h>
+#include <linux/sysdev.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/pm.h>
 #include <mach/common.h>
 #include <asm/mach/irq.h>
 #include <mach/hardware.h>
@@ -44,7 +46,7 @@
 #define AVIC_FIPNDH		0x60	/* fast int pending high */
 #define AVIC_FIPNDL		0x64	/* fast int pending low */
 
-static void __iomem *avic_base;
+void __iomem *avic_base;
 
 int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 {
@@ -102,10 +104,101 @@ static void mxc_unmask_irq(unsigned int irq)
 	__raw_writel(irq, avic_base + AVIC_INTENNUM);
 }
 
+static u32 saved_wakeup_low, saved_wakeup_high;
+static u32 suspend_wakeup_low, suspend_wakeup_high;
+
+/* Set interrupt number "irq" in the AVIC as a wake-up source */
+static int mxc_set_wake_irq(unsigned int irq, unsigned int enable)
+{
+	uint32_t *wakeup_intr;
+	uint32_t irq_bit;
+
+	if (irq < 32) {
+		wakeup_intr = &suspend_wakeup_low;
+		irq_bit = 1 << irq;
+	} else {
+		wakeup_intr = &suspend_wakeup_high;
+		irq_bit = 1 << (irq - 32);
+	}
+
+	printk(KERN_DEBUG "%s: %sabling wakeup for IRQ %d\n", __FUNCTION__,
+		enable ? "en" : "dis", irq);
+
+	if (enable) {
+		*wakeup_intr |= irq_bit;
+	} else {
+		*wakeup_intr &= ~irq_bit;
+	}
+
+	return 0;
+}
+
 static struct irq_chip mxc_avic_chip = {
 	.ack = mxc_mask_irq,
 	.mask = mxc_mask_irq,
 	.unmask = mxc_unmask_irq,
+	.set_wake = mxc_set_wake_irq,
+};
+
+#ifdef CONFIG_PM
+/* This function puts the AVIC in low-power mode/state.
+ * All interrupts that are enabled are first saved.
+ * Only those interrupts which are registered as a wake source by calling
+ * enable_irq_wake are enabled. All other interrupts are disabled.
+ */
+static int mxc_avic_suspend(struct sys_device *dev, pm_message_t mesg)
+{
+	saved_wakeup_high = __raw_readl(avic_base + AVIC_INTENABLEH);
+	saved_wakeup_low = __raw_readl(avic_base + AVIC_INTENABLEL);
+
+	printk(KERN_DEBUG "%s: writing %08x to AVIC_INTENABLEH\n",
+		__FUNCTION__, suspend_wakeup_high);
+	printk(KERN_DEBUG "%s: writing %08x to AVIC_INTENABLEL\n",
+		__FUNCTION__, suspend_wakeup_low);
+	__raw_writel(suspend_wakeup_high, avic_base + AVIC_INTENABLEH);
+	__raw_writel(suspend_wakeup_low, avic_base + AVIC_INTENABLEL);
+
+	return 0;
+}
+
+/* This function brings the AVIC back from low-power state.
+ * All interrupts that were enabled prior to suspend are re-enabled.
+ */
+static int mxc_avic_resume(struct sys_device *dev)
+{
+	printk(KERN_DEBUG "%s: writing %08x to AVIC_INTENABLEH\n",
+		__FUNCTION__, suspend_wakeup_high);
+	printk(KERN_DEBUG "%s: writing %08x to AVIC_INTENABLEL\n",
+		__FUNCTION__, suspend_wakeup_low);
+	__raw_writel(saved_wakeup_high, avic_base + AVIC_INTENABLEH);
+	__raw_writel(saved_wakeup_low, avic_base + AVIC_INTENABLEL);
+
+	return 0;
+}
+
+#else
+#define mxc_avic_suspend  NULL
+#define mxc_avic_resume   NULL
+#endif				/* CONFIG_PM */
+
+/*!
+ * This structure contains pointers to the power management callback functions.
+ */
+static struct sysdev_class mxc_avic_sysclass = {
+	.name = "mxc_irq",
+	.suspend = mxc_avic_suspend,
+	.resume = mxc_avic_resume,
+};
+
+/*!
+ * This structure represents AVIC as a system device.
+ * System devices follow a slightly different driver model.
+ * They don't need to do dynammic driver binding, can't be probed,
+ * and don't reside on any type of peripheral bus.
+ * So, it is represented and treated a little differently.
+ */
+struct sys_device mxc_avic_device = {
+	.cls = &mxc_avic_sysclass,
 };
 
 /*
@@ -113,11 +206,11 @@ static struct irq_chip mxc_avic_chip = {
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-void __init mxc_init_irq(void)
+void __init mxc_init_irq(void __iomem *irqbase)
 {
 	int i;
 
-	avic_base = IO_ADDRESS(AVIC_BASE_ADDR);
+	avic_base = irqbase;
 
 	/* put the AVIC into the reset value with
 	 * all interrupts disabled
@@ -153,3 +246,21 @@ void __init mxc_init_irq(void)
 	printk(KERN_INFO "MXC IRQ initialized\n");
 }
 
+extern int __init mxc_gpio_sysinit(void);
+
+/* This function registers AVIC hardware as a system device */
+static int __init mxc_avic_sysinit(void)
+{
+	int ret;
+
+	ret = sysdev_class_register(&mxc_avic_sysclass);
+	if (ret)
+		return ret;
+	ret = sysdev_register(&mxc_avic_device);
+	if (ret)
+		return ret;
+
+	ret = mxc_gpio_sysinit();
+	return ret;
+}
+core_initcall(mxc_avic_sysinit);

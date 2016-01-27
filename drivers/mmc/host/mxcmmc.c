@@ -59,9 +59,9 @@
 #define MMC_REG_RES_FIFO		0x34
 #define MMC_REG_BUFFER_ACCESS		0x38
 
-#define STR_STP_CLK_RESET               (1 << 3)
-#define STR_STP_CLK_START_CLK           (1 << 1)
-#define STR_STP_CLK_STOP_CLK            (1 << 0)
+#define STR_STP_CLK_RESET		(1 << 3)
+#define STR_STP_CLK_START_CLK		(1 << 1)
+#define STR_STP_CLK_STOP_CLK		(1 << 0)
 
 #define STATUS_CARD_INSERTION		(1 << 31)
 #define STATUS_CARD_REMOVAL		(1 << 30)
@@ -807,9 +807,10 @@ out_clk_put:
 out_iounmap:
 	iounmap(host->base);
 out_free:
+	r = host->res;
 	mmc_free_host(mmc);
 out_release_mem:
-	release_mem_region(host->res->start, resource_size(host->res));
+	release_mem_region(r->start, resource_size(r));
 	return ret;
 }
 
@@ -842,43 +843,34 @@ static int mxcmci_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int mxcmci_suspend(struct platform_device *dev, pm_message_t state)
+static int mxcmci_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
-
-	return ret;
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	return mmc_suspend_host(mmc, state);
 }
 
-static int mxcmci_resume(struct platform_device *dev)
+static int mxcmci_resume(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	struct mxcmci_host *host;
-	int ret = 0;
-
-	if (mmc) {
-		host = mmc_priv(mmc);
-		ret = mmc_resume_host(mmc);
-	}
-
-	return ret;
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	return mmc_resume_host(mmc);
 }
 #else
 #define mxcmci_suspend  NULL
 #define mxcmci_resume   NULL
 #endif /* CONFIG_PM */
 
-static struct platform_driver mxcmci_driver = {
-	.probe		= mxcmci_probe,
-	.remove		= mxcmci_remove,
+static struct dev_pm_ops mxmci_pm_ops = {
 	.suspend	= mxcmci_suspend,
 	.resume		= mxcmci_resume,
+};
+
+static struct platform_driver mxcmci_driver = {
+	.probe		= mxcmci_probe,
+	.remove		= __devexit_p(mxcmci_remove),
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
+		.pm		= &mxmci_pm_ops,
 	}
 };
 
@@ -886,13 +878,12 @@ static int __init mxcmci_init(void)
 {
 	return platform_driver_register(&mxcmci_driver);
 }
+module_init(mxcmci_init);
 
 static void __exit mxcmci_exit(void)
 {
 	platform_driver_unregister(&mxcmci_driver);
 }
-
-module_init(mxcmci_init);
 module_exit(mxcmci_exit);
 
 MODULE_DESCRIPTION("i.MX Multimedia Card Interface Driver");

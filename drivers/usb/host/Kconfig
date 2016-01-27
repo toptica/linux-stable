@@ -126,6 +126,37 @@ config USB_OXU210HP_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called oxu210hp-hcd.
 
+config USB_EHCI_MXC
+	bool "Support for Freescale on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_MXC
+	select USB_EHCI_ROOT_HUB_TT
+	---help---
+	  Variation of ARC USB block used in some Freescale chips.
+
+config ARCH_MXC_EHCI_USBH1
+	bool "Enable USB on USBH1 port"
+	depends on USB_EHCI_MXC && ARCH_MXC_HAS_USBH1
+
+config ARCH_MXC_EHCI_USBH2
+	bool "Enable USB on USBH2 port"
+	depends on USB_EHCI_MXC && ARCH_MXC_HAS_USBH2
+
+config ARCH_MXC_EHCI_USBOTG
+	bool "Enable USB on USBOTG port"
+	depends on USB_EHCI_MXC && ARCH_MXC_HAS_USBOTG
+
+config ARCH_MXC_HAS_USBH1
+	bool
+	depends on USB_EHCI_MXC
+
+config ARCH_MXC_HAS_USBH2
+	bool
+	depends on USB_EHCI_MXC
+
+config ARCH_MXC_HAS_USBOTG
+	bool
+	depends on USB_EHCI_MXC
+
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
 	depends on USB

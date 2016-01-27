@@ -184,6 +184,12 @@ struct dev_pm_ops {
 	int (*restore_noirq)(struct device *dev);
 };
 
+#ifdef CONFIG_PM_SLEEP
+#define __dev_pm_ops_p(o)	 (&(o))
+#else
+#define __dev_pm_ops_p(o)	 NULL
+#endif
+
 /**
  * PM_EVENT_ messages
  *

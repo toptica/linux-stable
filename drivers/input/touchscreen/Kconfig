@@ -296,6 +296,18 @@ config TOUCHSCREEN_ATMEL_TSADCC
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_tsadcc.
 
+config TOUCHSCREEN_MXC_TSC
+	tristate "i.MX25 Touchscreen Interface"
+	depends on ARCH_MX25
+	help
+	  Say Y here if you have a 4-wire touchscreen connected to the
+          ADC Controller on your Freescale i.MX25 SoC.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_tsadcc.
+
 config TOUCHSCREEN_UCB1400
 	tristate "Philips UCB1400 touchscreen"
 	depends on AC97_BUS

@@ -1,0 +1,37 @@
+if ARCH_MX25
+
+comment "MX25 platforms:"
+
+config MACH_MX25_3DS
+	select ARCH_MXC_IOMUX_V3
+	bool "Support MX25PDK (3DS) Platform"
+
+config MACH_TX25
+	select ARCH_MXC_IOMUX_V3
+	bool "Support Ka-Ro electronics TX25 module"
+	depends on ARCH_MX25
+	help
+	  Include support for Ka-Ro TX25 processor module
+
+config KARO_DEBUG
+	bool "Enable Ka-Ro specific debug messages"
+	depends on MACH_TX25
+	help
+	  Compile the architecture specific files with -DDEBUG to enable
+	  additional debug messages
+
+config MACH_STK5_BASEBOARD
+	bool "Ka-Ro Starterkit-5 (STK5) development board"
+	depends on MACH_TX25
+	help
+	  This adds board specific devices that can be found on Ka-Ro's
+	  STK5 evaluation board.
+
+config MXC_SDMA_API
+        bool "Use SDMA API"
+        default y
+        help
+           This selects the Freescale MXC SDMA API.
+           If unsure, say N.
+
+endif

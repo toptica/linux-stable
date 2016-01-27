@@ -2,10 +2,6 @@
 # Makefile for RTC class/drivers.
 #
 
-ifeq ($(CONFIG_RTC_DEBUG),y)
-	EXTRA_CFLAGS		+= -DDEBUG
-endif
-
 obj-$(CONFIG_RTC_LIB)		+= rtc-lib.o
 obj-$(CONFIG_RTC_HCTOSYS)	+= hctosys.o
 obj-$(CONFIG_RTC_CLASS)		+= rtc-core.o
@@ -67,6 +63,8 @@ obj-$(CONFIG_RTC_DRV_RX8581)	+= rtc-rx8581.o
 obj-$(CONFIG_RTC_DRV_S35390A)	+= rtc-s35390a.o
 obj-$(CONFIG_RTC_DRV_S3C)	+= rtc-s3c.o
 obj-$(CONFIG_RTC_DRV_SA1100)	+= rtc-sa1100.o
+obj-$(CONFIG_RTC_MXC)		+= rtc-mxc.o
+obj-$(CONFIG_RTC_MX25)		+= rtc-mx25.o
 obj-$(CONFIG_RTC_DRV_SH)	+= rtc-sh.o
 obj-$(CONFIG_RTC_DRV_STK17TA8)	+= rtc-stk17ta8.o
 obj-$(CONFIG_RTC_DRV_TEST)	+= rtc-test.o
@@ -78,3 +76,6 @@ obj-$(CONFIG_RTC_DRV_WM8350)	+= rtc-wm8350.o
 obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
 obj-$(CONFIG_RTC_DRV_PCF50633)	+= rtc-pcf50633.o
 obj-$(CONFIG_RTC_DRV_PS3)	+= rtc-ps3.o
+
+ccflags-$(CONFIG_RTC_DEBUG)	+= -DDEBUG
+

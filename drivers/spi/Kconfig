@@ -149,6 +149,55 @@ config SPI_MPC8xxx
 	  This driver uses a simple set of shift registers for data (opposed
 	  to the CPM based descriptor model).
 
+config SPI_MXC
+	tristate "MXC CSPI controller as SPI Master"
+	depends on ARCH_MXC && SPI_MASTER
+	select SPI_BITBANG
+	help
+	  This implements the SPI master mode using MXC CSPI.
+
+config SPI_MXC_TEST_LOOPBACK
+	bool "LOOPBACK Testing of CSPIs"
+	depends on SPI_MXC
+	default n
+
+config SPI_MXC_SELECT1
+	bool "CSPI1"
+	depends on SPI_MXC
+	default y
+
+config SPI_MXC_SELECT2
+	bool "CSPI2"
+	depends on SPI_MXC
+	default n
+
+config SPI_MXC_SELECT3
+	bool "CSPI3"
+	depends on SPI_MXC && (ARCH_MX3 || ARCH_MX2)
+	default n
+
+choice
+        prompt "SPI controller hardware revision"
+        default SPI_MXC_REV0
+        depends on SPI_MXC
+        config SPI_MXC_REV0
+                bool "Revision 0"
+                help
+                  hardware revision 0, mostly on MX27
+        config SPI_MXC_REV4
+                bool "Revision 4"
+                help
+                  hardware revision 4, mostly on MX31
+        config SPI_MXC_REV5
+                bool "Revision 5"
+                help
+                  hardware revision 5
+        config SPI_MXC_REV7
+                bool "Revision 7"
+                help
+                  hardware revision 7
+endchoice
+
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
 	depends on ARCH_OMAP1

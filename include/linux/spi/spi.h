@@ -68,6 +68,7 @@ struct spi_device {
 	struct device		dev;
 	struct spi_master	*master;
 	u32			max_speed_hz;
+	int (*cs_control)(int on);
 	u8			chip_select;
 	u8			mode;
 #define	SPI_CPHA	0x01			/* clock phase */
@@ -746,7 +747,10 @@ struct spi_board_info {
 	 *
 	 * chip_select reflects how this chip is wired to that master;
 	 * it's less than num_chipselect.
+	 * Alternatively a cs_control function can be supplied that
+	 * takes care of selecting the specific device
 	 */
+	int (*cs_control)(int on);
 	u16		bus_num;
 	u16		chip_select;
 
