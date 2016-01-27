@@ -42,6 +42,13 @@ config MACH_LASERBOX_MAINBOARD
 	  This adds board specific devices that can be found on TOPTICA's
 	  laserbox mainboard
 
+config MACH_MLE_II_MAINBOARD
+	bool "TOPTICA MLE_II mainboard support"
+	depends on MACH_TX25
+	help
+	  This adds board specific devices that can be found on TOPTICA's
+	  MLE_II mainboard
+
 endchoice
 
 config MACH_TX25_CUSTOM
@@ -50,13 +57,6 @@ config MACH_TX25_CUSTOM
 	help
 	  Enable this option to add custom initialisation code found
 	  in arch/arm/mach-mx25/stk5-custom.c
-
-config MACH_MLE_II_MAINBOARD
-	bool "TOPTICA MLE_II mainboard support"
-	depends on MACH_TX25
-	help
-	  This adds board specific devices that can be found on TOPTICA's
-	  MLE_II mainboard
 
 config MXC_SDMA_API
         bool "Use SDMA API"

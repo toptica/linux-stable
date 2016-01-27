@@ -67,7 +67,6 @@
 #include <mach/mmc.h>
 #include <mach/imx-uart.h>
 #include <mach/mxc_ehci.h>
-#include <mach/board-stk5.h>
 #include <mach/spi.h>
 #include <mach/sdhci.h>
 #include <mach/mx25_camera.h>
@@ -433,7 +432,7 @@ int tx25_usbh2_register(void)
 {
 	int ret;
 
-	ret = mxc_register_device(&mxc_usbh2, &tx25_usbh2_data);
+	ret = mxc_register_device(&mxc_usbh2_device, &tx25_usbh2_data);
 	return ret;
 }
 device_initcall(tx25_usbh2_register);
@@ -1648,7 +1647,7 @@ int __init karo_i2c_init(void)
 	int ret;
 
 	DBG(0, "%s: Registering I2C bus 0 at %dkHz\n", __FUNCTION__, karo_tx25_i2c_0_data.bitrate);
-	ret = mxc_register_device(&mxc_i2c_device0, &karo_tx25_i2c_0_data);
+	ret = mxc_register_device(&mx25_i2c1_device, &karo_tx25_i2c_0_data);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register I2C device: %d\n", ret);
 		return ret;
