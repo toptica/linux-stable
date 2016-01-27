@@ -87,7 +87,11 @@ static void karo_tx25_gpio_config(struct pad_desc *pd, int num)
 	int i;
 
 	for (i = 0; i < num; i++) {
-		if (mxc_iomux_v3_setup_pad(&pd[i]) == 0) {
+		//Make pad available for new driver
+		mxc_iomux_v3_release_pad(&pd[i]);
+		
+		if (mxc_iomux_v3_setup_pad(&pd[i]) != 0) {
+			printk(KERN_ERR "%s: failed to enable gpio table entry: %d\n", __FUNCTION__, i);
 			mxc_iomux_v3_release_pad(&pd[i]);
 		}
 	}
@@ -472,6 +476,7 @@ static struct pad_desc mxc_i2c0_pins[] = {
 	MX25_PAD_I2C1_DAT__I2C1_DAT,
 };
 
+
 static int karo_tx25_i2c_0_init(struct device *dev)
 {
 	DBG(-1, "%s: \n", __FUNCTION__);
@@ -487,7 +492,7 @@ static void karo_tx25_i2c_0_exit(struct device *dev)
 }
 
 static struct imxi2c_platform_data karo_tx25_i2c_0_data = {
-	.bitrate = 100000,
+	.bitrate = 10000,
 	.init = karo_tx25_i2c_0_init,
 	.exit = karo_tx25_i2c_0_exit,
 };
@@ -558,114 +563,15 @@ static struct pca953x_platform_data laserbox_gpio_base = {
         .gpio_base = 152,
 };
 
-static struct at24_platform_data karo_tx25_eeprom = {
-	.byte_len = 8192,
-	.page_size = 32,
-	.flags = AT24_FLAG_ADDR16,
-};
-
 static struct i2c_board_info karo_i2c_0_boardinfo[] __initdata = {
-	{/* main EEPROM with MLe config (CPU PCB) */
-		I2C_BOARD_INFO("at24", 0x50),
-		.platform_data = &karo_tx25_eeprom,
-		.type = "24c64",
-	},
-	{/* EEPROM of camera PCB */
-		I2C_BOARD_INFO("at24", 0x51),
-		.platform_data = &karo_tx25_eeprom,
-		.type = "24c64",
-	},
-	{/* EEPROM of connection PCB */
-		I2C_BOARD_INFO("at24", 0x52),
-		.platform_data = &karo_tx25_eeprom,
-		.type = "24c64",
-	},
-	{/* EEPROM of "Steckplatine" */
-		I2C_BOARD_INFO("at24", 0x53),
-		.platform_data = &karo_tx25_eeprom,
-		.type = "24c64",
-	},
-	{/* EEPROM of base PCB */
-		I2C_BOARD_INFO("at24", 0x54),
-		.platform_data = &karo_tx25_eeprom,
-		.type = "24c64",
-	},
-/*
-	{  temperature sensors
-		I2C_BOARD_INFO("lm73", 0x48),
-	},
-	{
-		I2C_BOARD_INFO("lm73", 0x49),
-	},
-	{
-		I2C_BOARD_INFO("lm73", 0x4a),
 
-	},
-*/	{ /* temperature sensors */
-		I2C_BOARD_INFO("lm73", 0x4c),
-	},
-	{
-		I2C_BOARD_INFO("lm73", 0x4d),
-	},
-	{
-		I2C_BOARD_INFO("lm73", 0x4e),
-	},
-	{ /* digital potentiometers */
-		I2C_BOARD_INFO("isl90840", 0x28),
-	},
-	{
-		I2C_BOARD_INFO("isl90840", 0x29),
-	},
-	{
-		I2C_BOARD_INFO("isl90840", 0x2a),
-	},
-	{
-		I2C_BOARD_INFO("isl90840", 0x2b),
-	},
-	{ /* LEDs */
-		I2C_BOARD_INFO("pca9551", 0x63),
-		.platform_data = &laserbox_led_7seg,
-	},
-	{
-		I2C_BOARD_INFO("pca9551", 0x61),
-		.platform_data = &laserbox_led_front,
-	},
-	{
-		I2C_BOARD_INFO("pca9551", 0x60),
-		.platform_data = &laserbox_led_extout,
-	},
-	{ /* GPIOs */
-		I2C_BOARD_INFO("pca9557", 0x1b),
-		.platform_data = &laserbox_gpio_front,
-	},
-	{
-		I2C_BOARD_INFO("pca9557", 0x18),
-		.platform_data = &laserbox_gpio_int1,
-	},
-	{
-		I2C_BOARD_INFO("pca9557", 0x19),
-		.platform_data = &laserbox_gpio_int2,
-	},
-	{
-		I2C_BOARD_INFO("pca9557", 0x1f),
-		.platform_data = &laserbox_gpio_base,
-	},
-	{
-		I2C_BOARD_INFO("ads1112", 0x48),
-	},
-	{
-		I2C_BOARD_INFO("ads1112", 0x4a),
-	},
-	{
-		I2C_BOARD_INFO("mcp7941x", 0x6f),
-	},
 };
 
 int __init karo_i2c_init(void)
 {
 	int ret;
 
-	DBG(0, "%s: Registering I2C bus 0 (new)\n", __FUNCTION__);
+	DBG(0, "%s: Registering I2C bus 0 at %dkHz\n", __FUNCTION__, karo_tx25_i2c_0_data.bitrate);
 	ret = mxc_register_device(&mxc_i2c_device0, &karo_tx25_i2c_0_data);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register I2C device: %d\n", ret);
@@ -709,6 +615,7 @@ device_initcall(karo_tx25_tsc_register);
 #if defined(CONFIG_CAN_FLEXCAN) || defined(CONFIG_CAN_FLEXCAN_MODULE)
 
 #ifdef CONFIG_CAN_FLEXCAN_CAN1
+#error NO CAN!
 static struct pad_desc tx25_flexcan1_pads[] = {
 	MX25_PAD_GPIO_A__CAN1_TX,
 	MX25_PAD_GPIO_B__CAN1_RX,
@@ -880,147 +787,86 @@ static __init void karo_tx25_board_init(void)
 }
 
 static struct pad_desc karo_tx25_gpios[] __initdata = {
-	MX25_PAD_GPIO_A__GPIO_A,
-	MX25_PAD_GPIO_B__GPIO_B,
-	MX25_PAD_GPIO_C__GPIO_C,
-	MX25_PAD_GPIO_D__GPIO_D,
-	MX25_PAD_GPIO_E__GPIO_E,
-	MX25_PAD_GPIO_F__GPIO_F,
-	MX25_PAD_CSI_D7__GPIO_1_6,
-	MX25_PAD_CSI_D8__GPIO_1_7,
-//	MX25_PAD_CSI_MCLK__GPIO_1_8,
-//	MX25_PAD_CSI_VSYNC__GPIO_1_9,
-//	MX25_PAD_CSI_HSYNC__GPIO_1_10,
-//	MX25_PAD_CSI_PIXCLK__GPIO_1_11,
-	MX25_PAD_I2C1_CLK__GPIO_1_12,
-	MX25_PAD_I2C1_DAT__GPIO_1_13,
-	MX25_PAD_CSPI1_MOSI__GPIO_1_14,
-	MX25_PAD_CSPI1_MISO__GPIO_1_15,
-	MX25_PAD_CSPI1_SS0__GPIO_1_16,
-	MX25_PAD_CSPI1_SS1__GPIO_1_17,
-	MX25_PAD_CSPI1_SCLK__GPIO_1_18,
-	MX25_PAD_LD5__GPIO_1_19,
-	MX25_PAD_LD6__GPIO_1_20,
-	MX25_PAD_LD7__GPIO_1_21,
-	MX25_PAD_HSYNC__GPIO_1_22,
-	MX25_PAD_VSYNC__GPIO_1_23,
-	MX25_PAD_LSCLK__GPIO_1_24,
-	MX25_PAD_OE_ACD__GPIO_1_25,
-	MX25_PAD_PWM__GPIO_1_26,
-	MX25_PAD_CSI_D2__GPIO_1_27,
-	MX25_PAD_CSI_D3__GPIO_1_28,
-	MX25_PAD_CSI_D4__GPIO_1_29,
-	MX25_PAD_CSI_D5__GPIO_1_30,
-	MX25_PAD_CSI_D6__GPIO_1_31,
+	MX25_PAD_GPIO_A__GPIO_A,	//CS_E2_UC_ENABLE (Chipselect on for HW Version register on baseplate)
 
-	MX25_PAD_A14__GPIO_2_0,
-	MX25_PAD_A15__GPIO_2_1,
-	MX25_PAD_A16__GPIO_2_2,
-	MX25_PAD_A17__GPIO_2_3,
-	MX25_PAD_A18__GPIO_2_4,
-	MX25_PAD_A19__GPIO_2_5,
-	MX25_PAD_A20__GPIO_2_6,
-	MX25_PAD_A21__GPIO_2_7,
-	MX25_PAD_A22__GPIO_2_8,
-	MX25_PAD_A23__GPIO_2_9,
-	MX25_PAD_A24__GPIO_2_10,
-	MX25_PAD_A25__GPIO_2_11,
-	MX25_PAD_EB0__GPIO_2_12,
-	MX25_PAD_EB1__GPIO_2_13,
-	MX25_PAD_OE__GPIO_2_14,
-	MX25_PAD_LD0__GPIO_2_15,
-	MX25_PAD_LD1__GPIO_2_16,
-	MX25_PAD_LD2__GPIO_2_17,
-	MX25_PAD_LD3__GPIO_2_18,
-	MX25_PAD_LD4__GPIO_2_19,
-	MX25_PAD_DE_B__GPIO_2_20,
-	MX25_PAD_CLKO__GPIO_2_21,
-	MX25_PAD_CSPI1_RDY__GPIO_2_22,
-	MX25_PAD_SD1_CMD__GPIO_2_23,
-	MX25_PAD_SD1_CLK__GPIO_2_24,
-	MX25_PAD_SD1_DATA0__GPIO_2_25,
-	MX25_PAD_SD1_DATA1__GPIO_2_26,
-	MX25_PAD_SD1_DATA2__GPIO_2_27,
-	MX25_PAD_SD1_DATA3__GPIO_2_28,
-	MX25_PAD_KPP_ROW0__GPIO_2_29,
-	MX25_PAD_KPP_ROW1__GPIO_2_30,
-	MX25_PAD_KPP_ROW2__GPIO_2_31,
+	//GPIO SPI chip selects
+	MX25_PAD_CSPI1_RDY__GPIO_2_22,	//CS_POTI_PHD = gpio54
+	MX25_PAD_A25__GPIO_2_11,	//CS_POTI1    = gpio43
+	MX25_PAD_A23__GPIO_2_9,		//CS_POTI2    = gpio41
+	MX25_PAD_A21__GPIO_2_7, 	//CS_POTI3    = gpio39
+	MX25_PAD_A18__GPIO_2_4,		//CS_POTI4    = gpio36
+	MX25_PAD_KPP_ROW1__GPIO_2_30,	//CS_POTI5    = gpio62
+	MX25_PAD_GPIO_C__GPIO_C,	//CS_POTI6    = 
+	MX25_PAD_KPP_COL2__GPIO_3_3,	//CS_POTI7    = gpio67
+	MX25_PAD_KPP_COL0__GPIO_3_1,	//CS_POTI8    = gpio65
 
-	MX25_PAD_KPP_ROW3__GPIO_3_0,
-	MX25_PAD_KPP_COL0__GPIO_3_1,
-	MX25_PAD_KPP_COL1__GPIO_3_2,
-	MX25_PAD_KPP_COL2__GPIO_3_3,
-	MX25_PAD_KPP_COL3__GPIO_3_4,
-	MX25_PAD_FEC_MDC__GPIO_3_5,
-	MX25_PAD_FEC_MDIO__GPIO_3_6,
-	MX25_PAD_FEC_TDATA0__GPIO_3_7,
-	MX25_PAD_FEC_TDATA1__GPIO_3_8,
-	MX25_PAD_FEC_TX_EN__GPIO_3_9,
-	MX25_PAD_FEC_RDATA0__GPIO_3_10,
-	MX25_PAD_FEC_RDATA1__GPIO_3_11,
-	MX25_PAD_FEC_RX_DV__GPIO_3_12,
-	MX25_PAD_FEC_TX_CLK__GPIO_3_13,
-	MX25_PAD_RTCK__GPIO_3_14,
-	MX25_PAD_EXT_ARMCLK__GPIO_3_15,
-	MX25_PAD_UPLL_BYPCLK__GPIO_3_16,
-	MX25_PAD_VSTBY_REQ__GPIO_3_17,
-	MX25_PAD_VSTBY_ACK__GPIO_3_18,
-	MX25_PAD_POWER_FAIL__GPIO_3_19,
-	MX25_PAD_CS4__GPIO_3_20,
-	MX25_PAD_CS5__GPIO_3_21,
-#if 0
-	MX25_PAD_NF_CE0__GPIO_3_22,
-#endif
-	MX25_PAD_ECB__GPIO_3_23,
-	MX25_PAD_LBA__GPIO_3_24,
-	MX25_PAD_RW__GPIO_3_25,
-#if 0
-	MX25_PAD_NFWE_B__GPIO_3_26,
-	MX25_PAD_NFRE_B__GPIO_3_27,
-	MX25_PAD_NFALE__GPIO_3_28,
-	MX25_PAD_NFCLE__GPIO_3_29,
-	MX25_PAD_NFWP_B__GPIO_3_30,
-	MX25_PAD_NFRB__GPIO_3_31,
-#endif
-	MX25_PAD_A10__GPIO_4_0,
-	MX25_PAD_A13__GPIO_4_1,
-	MX25_PAD_CS0__GPIO_4_2,
-	MX25_PAD_CS1__GPIO_4_3,
-	MX25_PAD_BCLK__GPIO_4_4,
-	MX25_PAD_D15__GPIO_4_5,
-	MX25_PAD_D14__GPIO_4_6,
-	MX25_PAD_D13__GPIO_4_7,
-	MX25_PAD_D12__GPIO_4_8,
-	MX25_PAD_D11__GPIO_4_9,
-	MX25_PAD_D10__GPIO_4_10,
-	MX25_PAD_D9__GPIO_4_11,
-	MX25_PAD_D8__GPIO_4_12,
-#if 0
-	MX25_PAD_D7__GPIO_4_13,
-	MX25_PAD_D6__GPIO_4_14,
-	MX25_PAD_D5__GPIO_4_15,
-	MX25_PAD_D4__GPIO_4_16,
-	MX25_PAD_D3__GPIO_4_17,
-	MX25_PAD_D2__GPIO_4_18,
-	MX25_PAD_D1__GPIO_4_19,
-	MX25_PAD_D0__GPIO_4_20,
-#endif
-	MX25_PAD_CSI_D9__GPIO_4_21,
-	MX25_PAD_UART1_RXD__GPIO_4_22,
-	MX25_PAD_UART1_TXD__GPIO_4_23,
-	MX25_PAD_UART1_RTS__GPIO_4_24,
-	MX25_PAD_UART1_CTS__GPIO_4_25,
-	MX25_PAD_UART2_RXD__GPIO_4_26,
-	MX25_PAD_UART2_TXD__GPIO_4_27,
-	MX25_PAD_UART2_RTS__GPIO_4_28,
-	MX25_PAD_UART2_CTS__GPIO_4_29,
-	MX25_PAD_BOOT_MODE0__GPIO_4_30,
-	MX25_PAD_BOOT_MODE1__GPIO_4_31,
+	MX25_PAD_KPP_COL3__GPIO_3_4,	//LDP_TEC.SEL_CONNECT_A	= gpio68
+	MX25_PAD_SD1_CMD__GPIO_2_23,	//LDP_TEC.MOTOR_A0 = gpio55 used by elliptec driver
+	MX25_PAD_POWER_FAIL__GPIO_3_19, //LDP_TEC.MOTOR_A1 = gpio83 used by elliptec driver
+	MX25_PAD_UPLL_BYPCLK__GPIO_3_16,//MOTOR_ENABLE
+
+	MX25_PAD_RTCK__GPIO_3_14,	//INTERLOCK_IN = gpio78
+	MX25_PAD_BCLK__GPIO_4_4,	//CS_AOTF = gpio100
+
+	//TEC control signals
+	MX25_PAD_LD7__GPIO_1_21,	//LDP_TEC.POSITION1 = gpio21
+	MX25_PAD_A16__GPIO_2_2,		//LDP_TEC.POSITION2 = gpio34
+	MX25_PAD_GPIO_B__GPIO_B,	//LDP_TEC.POSITION3 = 
+	MX25_PAD_A20__GPIO_2_6,		//LDP_TEC.POSITION4 = gpio38
+
+	MX25_PAD_D14__GPIO_4_6,		//POWERFAULT = gpio102 
+
+	MX25_PAD_GPIO_E__GPIO_E,	//TP301 = gpio
+	//TP302 is probably a wrong labeling in base board electronis layout
+	MX25_PAD_GPIO_F__GPIO_F,	//TP303 = gpio
+	MX25_PAD_LD1__GPIO_2_16,	//TP304 = gpio48
+	MX25_PAD_LD3__GPIO_2_18,	//TP305 = gpio50
+	MX25_PAD_EB1__GPIO_2_13,	//TP306 = gpio45
+	MX25_PAD_VSTBY_REQ__GPIO_3_17,	//TP310 = gpio81
+	MX25_PAD_KPP_ROW3__GPIO_3_0,	//TP315 = gpio64
+	MX25_PAD_LD0__GPIO_2_15,	//TP318 = gpio47
+	MX25_PAD_UART1_RTS__GPIO_4_24,  //TP321 = gpio120
+	MX25_PAD_UART2_RTS__GPIO_4_28,  //TP322 = gpio124
+	MX25_PAD_CS5__GPIO_3_21,        //TP323 = gpio85
+	MX25_PAD_KPP_COL1__GPIO_3_2,    //TP324 = gpio66
+
+
+	MX25_PAD_SD1_DATA3__GPIO_2_28,  // AOTF_RESET = gpio60
+	MX25_PAD_SD1_CLK__GPIO_2_24,    // SW_ENABLE = gpio56
+
+	//System EEPROM
+	MX25_PAD_EXT_ARMCLK__GPIO_3_15, //CS_E2_BASE = gpio79
+	// System EEPROM read/write protection 
+        MX25_PAD_SD1_DATA1__GPIO_2_26,  //E2_HOLD = gpio58 = PIN53
+
+	MX25_PAD_A24__GPIO_2_10,        // MEMS Enable GPIO = gpio 42
+
+	//ADC BUSY INPUT
+	MX25_PAD_HSYNC__GPIO_1_22,      // = gpio22
 };
+
+#define E2_HOLD_1_GPIO (1*32+26)
 
 static int __init karo_tx25_setup_gpios(void)
 {
+	int ret;
+	printk("Setting up TX25 GPIOs!\n");
 	karo_tx25_gpio_config(karo_tx25_gpios, ARRAY_SIZE(karo_tx25_gpios));
+
+	ret = gpio_request(E2_HOLD_1_GPIO, "E2_HOLD_PIN_53");
+	if (ret) {
+		printk(KERN_ERR "%s: failed to request gpio:%d\n", __FUNCTION__, E2_HOLD_1_GPIO);
+	} else {
+		ret = gpio_direction_output(E2_HOLD_1_GPIO, 1);
+                if (ret) {
+			printk(KERN_ERR "%s: failed to set output gpio:%d\n", __FUNCTION__, E2_HOLD_1_GPIO);
+		}
+
+	}
+
+	// Let user space have access to EEPROM
+	gpio_free(E2_HOLD_1_GPIO);
+
 	return 0;
 }
 late_initcall(karo_tx25_setup_gpios);
